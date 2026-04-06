@@ -56,14 +56,21 @@ Integration tests run against real PostgreSQL in Docker — no mocking the datab
 - [x] Frontend tests for auth flow and table rendering (18 new tests, 38 total)
 
 ### Phase 5: Admin Full Functionality
-- [ ] Approve appointment (status toggle + row colour)
-- [ ] Edit appointment (pre-populated form, save changes)
-- [ ] Delete appointment
-- [ ] Audit log entries for all admin actions
-- [ ] Integration tests for each action
+- [x] Approve appointment (status toggle + row colour)
+- [x] Edit appointment (pre-populated form, save changes)
+- [x] Delete appointment (confirmation dialog)
+- [x] Audit log entries for all admin actions (from/to diffs, admin_user_id tracking)
+- [x] Appointment detail page with audit timeline (/admin/appointments/[id])
+- [x] Integration tests for each action (9 new e2e tests, 131 backend total)
 
 ### Phase 6 (Nice to have): WebSockets in Admin
-- [ ] Real-time updates when new appointments are submitted
+- [x] Real-time updates when new appointments are submitted (Socket.IO gateway)
+
+### Phase 6.5: Accessibility Testing
+- [x] WCAG 2.2 Level A/AA axe-core audit on booking form
+- [x] Keyboard tab order and Enter key submission tests
+- [x] aria-describedby error linkage validation
+- [x] Playwright e2e accessibility tests (6 tests)
 
 ### Phase 7 (Nice to have): FHIR Format
 - [ ] Appointment records available in FHIR R4 format
