@@ -24,7 +24,7 @@ describe('Security middleware', () => {
   }, 15_000);
 
   afterAll(async () => {
-    await app.close();
+    await app?.close();
   });
 
   describe('Helmet', () => {

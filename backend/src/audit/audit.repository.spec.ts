@@ -42,7 +42,7 @@ describe('AuditRepository', () => {
   }, 30_000);
 
   afterAll(async () => {
-    await db.destroy();
+    await db?.destroy();
   });
 
   beforeEach(async () => {
