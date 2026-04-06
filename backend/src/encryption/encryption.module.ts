@@ -7,9 +7,10 @@ import { EncryptionService } from './encryption.service';
     {
       provide: EncryptionService,
       useFactory: () => {
-        const key =
-          process.env.ENCRYPTION_KEY ||
-          'dev-encryption-key-32bytes00000'.padEnd(64, '0');
+        const key = process.env.ENCRYPTION_KEY;
+        if (!key) {
+          throw new Error('ENCRYPTION_KEY environment variable is required');
+        }
         return new EncryptionService(key);
       },
     },

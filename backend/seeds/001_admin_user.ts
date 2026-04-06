@@ -4,8 +4,12 @@ import bcrypt from 'bcrypt';
 const BCRYPT_ROUNDS = 10;
 
 export async function seed(knex: Knex): Promise<void> {
-  const email = process.env.ADMIN_EMAIL || 'admin@sixbee.health';
-  const password = process.env.ADMIN_PASSWORD || 'changeme';
+  const email = process.env.ADMIN_EMAIL;
+  const password = process.env.ADMIN_PASSWORD;
+
+  if (!email || !password) {
+    throw new Error('ADMIN_EMAIL and ADMIN_PASSWORD environment variables are required');
+  }
 
   const existing = await knex('admin_users').where({ email }).first();
   if (existing) return;
