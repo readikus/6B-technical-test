@@ -49,6 +49,7 @@ This starts PostgreSQL, runs database migrations, seeds the admin user, and boot
 | Patient booking form  | http://localhost:3000         |
 | Admin login           | http://localhost:3000/admin   |
 | Backend API           | http://localhost:3001         |
+| API documentation     | http://localhost:3001/api/docs |
 
 Log in to the admin area using the `ADMIN_EMAIL` and `ADMIN_PASSWORD` from your `.env` file.
 

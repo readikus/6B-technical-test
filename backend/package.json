@@ -23,6 +23,7 @@
     "@nestjs/core": "^11.0.1",
     "@nestjs/event-emitter": "^3.0.1",
     "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/swagger": "^11.2.6",
     "bcrypt": "^6.0.0",
     "helmet": "^8.1.0",
     "knex": "^3.2.9",
@@ -30,6 +31,11 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "zod": "^4.3.6"
+  },
+  "overrides": {
+    "lodash": "^4.17.24",
+    "path-to-regexp": "^8.4.0",
+    "picomatch": "^4.0.4"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",

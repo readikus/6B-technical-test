@@ -77,10 +77,10 @@ Integration tests run against real PostgreSQL in Docker — no mocking the datab
 
 - [x] Helmet middleware on NestJS
 - [x] AES-256-GCM encryption at rest for all PII fields
-- [ ] BCrypt password hashing (10 rounds)
-- [ ] JWT auth with 8hr expiry
+- [x] BCrypt password hashing (10 rounds) — admin seed in `seeds/001_admin_user.ts`
+- [ ] JWT auth with 8hr expiry — planned for Phase 4
 - [x] Zod input validation
 - [x] Parameterised queries via Knex (no raw SQL)
 - [x] CORS configured
-- [ ] `npm audit` clean on both projects
+- [x] `npm audit` clean on both projects — overrides for transitive deps
 - [x] E2E tests for SQL injection and XSS payloads
