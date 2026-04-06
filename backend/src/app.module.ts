@@ -6,6 +6,7 @@ import { EncryptionModule } from './encryption/encryption.module';
 import { DatabaseModule } from './database/database.module';
 import { AppointmentsModule } from './appointments/appointments.module';
 import { AuditModule } from './audit/audit.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { AuditModule } from './audit/audit.module';
     DatabaseModule,
     AppointmentsModule,
     AuditModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -8,6 +8,7 @@ import {
   Param,
   HttpCode,
   BadRequestException,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -21,6 +22,7 @@ import {
   createAppointmentSchema,
   updateAppointmentSchema,
 } from './appointments.validation';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { z } from 'zod';
 
 const UUID_REGEX =
@@ -52,31 +54,53 @@ export class AppointmentsController {
       required: ['name', 'email', 'phone', 'description', 'date_time'],
       properties: {
         name: { type: 'string', example: 'Jane Smith' },
-        email: { type: 'string', format: 'email', example: 'jane.smith@example.com' },
+        email: {
+          type: 'string',
+          format: 'email',
+          example: 'jane.smith@example.com',
+        },
         phone: { type: 'string', example: '+447700900000' },
         description: { type: 'string', example: 'Annual health check-up' },
-        date_time: { type: 'string', format: 'date-time', example: '2026-12-15T10:00:00.000Z' },
+        date_time: {
+          type: 'string',
+          format: 'date-time',
+          example: '2026-12-15T10:00:00.000Z',
+        },
       },
     },
   })
-  @ApiResponse({ status: 201, description: 'Appointment created', schema: { example: appointmentExample } })
+  @ApiResponse({
+    status: 201,
+    description: 'Appointment created',
+    schema: { example: appointmentExample },
+  })
   @ApiResponse({ status: 400, description: 'Validation failed' })
   async create(@Body() body: unknown) {
     const dto = this.validate(createAppointmentSchema, body);
     return this.service.create(dto);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get()
   @ApiOperation({ summary: 'List all appointments' })
-  @ApiResponse({ status: 200, description: 'Array of appointments', schema: { example: [appointmentExample] } })
+  @ApiResponse({
+    status: 200,
+    description: 'Array of appointments',
+    schema: { example: [appointmentExample] },
+  })
   async findAll() {
     return this.service.findAll();
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
   @ApiOperation({ summary: 'Get an appointment by ID' })
   @ApiParam({ name: 'id', format: 'uuid' })
-  @ApiResponse({ status: 200, description: 'The appointment', schema: { example: appointmentExample } })
+  @ApiResponse({
+    status: 200,
+    description: 'The appointment',
+    schema: { example: appointmentExample },
+  })
   @ApiResponse({ status: 400, description: 'Invalid UUID format' })
   @ApiResponse({ status: 404, description: 'Appointment not found' })
   async findOne(@Param('id') id: string) {
@@ -84,6 +108,7 @@ export class AppointmentsController {
     return this.service.findOne(id);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Patch(':id')
   @ApiOperation({ summary: 'Partially update an appointment' })
   @ApiParam({ name: 'id', format: 'uuid' })
@@ -92,15 +117,27 @@ export class AppointmentsController {
       type: 'object',
       properties: {
         name: { type: 'string', example: 'Jane Smith' },
-        email: { type: 'string', format: 'email', example: 'jane.smith@example.com' },
+        email: {
+          type: 'string',
+          format: 'email',
+          example: 'jane.smith@example.com',
+        },
         phone: { type: 'string', example: '+447700900000' },
         description: { type: 'string', example: 'Annual health check-up' },
-        date_time: { type: 'string', format: 'date-time', example: '2026-12-15T10:00:00.000Z' },
+        date_time: {
+          type: 'string',
+          format: 'date-time',
+          example: '2026-12-15T10:00:00.000Z',
+        },
         status: { type: 'string', enum: ['pending', 'confirmed', 'cancelled'] },
       },
     },
   })
-  @ApiResponse({ status: 200, description: 'Updated appointment', schema: { example: appointmentExample } })
+  @ApiResponse({
+    status: 200,
+    description: 'Updated appointment',
+    schema: { example: appointmentExample },
+  })
   @ApiResponse({ status: 400, description: 'Validation failed' })
   @ApiResponse({ status: 404, description: 'Appointment not found' })
   async update(@Param('id') id: string, @Body() body: unknown) {
@@ -109,6 +146,7 @@ export class AppointmentsController {
     return this.service.update(id, dto);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
   @HttpCode(204)
   @ApiOperation({ summary: 'Delete an appointment' })
