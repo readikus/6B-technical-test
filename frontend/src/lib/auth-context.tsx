@@ -4,7 +4,6 @@ import {
   createContext,
   useContext,
   useState,
-  useEffect,
   useCallback,
   type ReactNode,
 } from 'react';
@@ -24,17 +23,12 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 const TOKEN_KEY = 'admin_token';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [token, setToken] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem(TOKEN_KEY);
+  });
+  const [isLoading] = useState(false);
   const router = useRouter();
-
-  useEffect(() => {
-    const stored = localStorage.getItem(TOKEN_KEY);
-    if (stored) {
-      setToken(stored);
-    }
-    setIsLoading(false);
-  }, []);
 
   const login = useCallback(
     async (email: string, password: string) => {

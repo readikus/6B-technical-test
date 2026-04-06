@@ -54,14 +54,26 @@ export class AppointmentsController {
       required: ['name', 'email', 'phone', 'description', 'date_time'],
       properties: {
         name: { type: 'string', example: 'Jane Smith' },
-        email: { type: 'string', format: 'email', example: 'jane.smith@example.com' },
+        email: {
+          type: 'string',
+          format: 'email',
+          example: 'jane.smith@example.com',
+        },
         phone: { type: 'string', example: '+447700900000' },
         description: { type: 'string', example: 'Annual health check-up' },
-        date_time: { type: 'string', format: 'date-time', example: '2026-12-15T10:00:00.000Z' },
+        date_time: {
+          type: 'string',
+          format: 'date-time',
+          example: '2026-12-15T10:00:00.000Z',
+        },
       },
     },
   })
-  @ApiResponse({ status: 201, description: 'Appointment created', schema: { example: appointmentExample } })
+  @ApiResponse({
+    status: 201,
+    description: 'Appointment created',
+    schema: { example: appointmentExample },
+  })
   @ApiResponse({ status: 400, description: 'Validation failed' })
   async create(@Body() body: unknown) {
     const dto = this.validate(createAppointmentSchema, body);
@@ -71,7 +83,11 @@ export class AppointmentsController {
   @UseGuards(JwtAuthGuard)
   @Get()
   @ApiOperation({ summary: 'List all appointments' })
-  @ApiResponse({ status: 200, description: 'Array of appointments', schema: { example: [appointmentExample] } })
+  @ApiResponse({
+    status: 200,
+    description: 'Array of appointments',
+    schema: { example: [appointmentExample] },
+  })
   async findAll() {
     return this.service.findAll();
   }
@@ -80,7 +96,11 @@ export class AppointmentsController {
   @Get(':id')
   @ApiOperation({ summary: 'Get an appointment by ID' })
   @ApiParam({ name: 'id', format: 'uuid' })
-  @ApiResponse({ status: 200, description: 'The appointment', schema: { example: appointmentExample } })
+  @ApiResponse({
+    status: 200,
+    description: 'The appointment',
+    schema: { example: appointmentExample },
+  })
   @ApiResponse({ status: 400, description: 'Invalid UUID format' })
   @ApiResponse({ status: 404, description: 'Appointment not found' })
   async findOne(@Param('id') id: string) {
@@ -97,15 +117,27 @@ export class AppointmentsController {
       type: 'object',
       properties: {
         name: { type: 'string', example: 'Jane Smith' },
-        email: { type: 'string', format: 'email', example: 'jane.smith@example.com' },
+        email: {
+          type: 'string',
+          format: 'email',
+          example: 'jane.smith@example.com',
+        },
         phone: { type: 'string', example: '+447700900000' },
         description: { type: 'string', example: 'Annual health check-up' },
-        date_time: { type: 'string', format: 'date-time', example: '2026-12-15T10:00:00.000Z' },
+        date_time: {
+          type: 'string',
+          format: 'date-time',
+          example: '2026-12-15T10:00:00.000Z',
+        },
         status: { type: 'string', enum: ['pending', 'confirmed', 'cancelled'] },
       },
     },
   })
-  @ApiResponse({ status: 200, description: 'Updated appointment', schema: { example: appointmentExample } })
+  @ApiResponse({
+    status: 200,
+    description: 'Updated appointment',
+    schema: { example: appointmentExample },
+  })
   @ApiResponse({ status: 400, description: 'Validation failed' })
   @ApiResponse({ status: 404, description: 'Appointment not found' })
   async update(@Param('id') id: string, @Body() body: unknown) {

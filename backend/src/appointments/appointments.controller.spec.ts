@@ -5,10 +5,12 @@ import { App } from 'supertest/types';
 import Knex from 'knex';
 import * as path from 'path';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { JwtModule } from '@nestjs/jwt';
 import { AppointmentsController } from './appointments.controller';
 import { AppointmentsService } from './appointments.service';
 import { AppointmentsRepository } from './appointments.repository';
 import { EncryptionService } from '../encryption/encryption.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { KNEX_TOKEN } from '../database/database.module';
 
 const TEST_DB = 'sixbee_health_test';
@@ -57,6 +59,12 @@ describe('AppointmentsController', () => {
     });
 
     const module: TestingModule = await Test.createTestingModule({
+      imports: [
+        JwtModule.register({
+          secret: 'test-jwt-secret',
+          signOptions: { expiresIn: '8h' },
+        }),
+      ],
       controllers: [AppointmentsController],
       providers: [
         AppointmentsService,
@@ -68,7 +76,10 @@ describe('AppointmentsController', () => {
         },
         { provide: EventEmitter2, useValue: new EventEmitter2() },
       ],
-    }).compile();
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     app = module.createNestApplication();
     app.setGlobalPrefix('api');

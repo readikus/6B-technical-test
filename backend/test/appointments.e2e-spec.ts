@@ -3,6 +3,7 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import Knex from 'knex';
+import bcrypt from 'bcrypt';
 import helmet from 'helmet';
 import * as path from 'path';
 import { AppModule } from '../src/app.module';
@@ -10,6 +11,7 @@ import { AppModule } from '../src/app.module';
 describe('Appointments API (e2e)', () => {
   let app: INestApplication<App>;
   let db: ReturnType<typeof Knex>;
+  let authToken: string;
 
   const connectionBase = {
     host: process.env.POSTGRES_HOST || 'localhost',
@@ -28,9 +30,15 @@ describe('Appointments API (e2e)', () => {
     date_time: '2026-12-15T10:00:00.000Z',
   };
 
+  const adminCredentials = {
+    email: 'appt-test@test.com',
+    password: 'test-password-123',
+  };
+
   beforeAll(async () => {
     process.env.ENCRYPTION_KEY = 'a'.repeat(64);
     process.env.POSTGRES_DB = testDb;
+    process.env.JWT_SECRET = 'test-jwt-secret';
 
     // Create test database if it doesn't exist
     const adminDb = Knex({
@@ -65,9 +73,24 @@ describe('Appointments API (e2e)', () => {
     app.enableCors({ origin: ['http://localhost:3000'] });
     app.setGlobalPrefix('api');
     await app.init();
+
+    // Seed admin user and obtain JWT
+    const hashedPassword = await bcrypt.hash(adminCredentials.password, 10);
+    await db('admin_users')
+      .insert({ email: adminCredentials.email, password: hashedPassword })
+      .onConflict('email')
+      .ignore();
+
+    const loginRes = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send(adminCredentials);
+    authToken = loginRes.body.access_token as string;
   }, 30_000);
 
   afterAll(async () => {
+    if (db) {
+      await db('admin_users').where({ email: adminCredentials.email }).del();
+    }
     await app?.close();
     await db?.destroy();
   });
@@ -221,9 +244,9 @@ describe('Appointments API (e2e)', () => {
       // Arrange — table is truncated in beforeEach
 
       // Act
-      const response = await request(app.getHttpServer()).get(
-        '/api/appointments',
-      );
+      const response = await request(app.getHttpServer())
+        .get('/api/appointments')
+        .set('Authorization', `Bearer ${authToken}`);
 
       // Assert
       expect(response.status).toBe(200);
@@ -244,9 +267,9 @@ describe('Appointments API (e2e)', () => {
         });
 
       // Act
-      const response = await request(app.getHttpServer()).get(
-        '/api/appointments',
-      );
+      const response = await request(app.getHttpServer())
+        .get('/api/appointments')
+        .set('Authorization', `Bearer ${authToken}`);
 
       // Assert
       expect(response.status).toBe(200);
@@ -267,9 +290,9 @@ describe('Appointments API (e2e)', () => {
         .send(validAppointment);
 
       // Act
-      const response = await request(app.getHttpServer()).get(
-        `/api/appointments/${created.body.id}`,
-      );
+      const response = await request(app.getHttpServer())
+        .get(`/api/appointments/${created.body.id}`)
+        .set('Authorization', `Bearer ${authToken}`);
 
       // Assert
       expect(response.status).toBe(200);
@@ -284,9 +307,9 @@ describe('Appointments API (e2e)', () => {
       const fakeId = '00000000-0000-0000-0000-000000000000';
 
       // Act
-      const response = await request(app.getHttpServer()).get(
-        `/api/appointments/${fakeId}`,
-      );
+      const response = await request(app.getHttpServer())
+        .get(`/api/appointments/${fakeId}`)
+        .set('Authorization', `Bearer ${authToken}`);
 
       // Assert
       expect(response.status).toBe(404);
@@ -294,9 +317,9 @@ describe('Appointments API (e2e)', () => {
 
     it('returns 400 for an invalid UUID format', async () => {
       // Arrange / Act
-      const response = await request(app.getHttpServer()).get(
-        '/api/appointments/not-a-uuid',
-      );
+      const response = await request(app.getHttpServer())
+        .get('/api/appointments/not-a-uuid')
+        .set('Authorization', `Bearer ${authToken}`);
 
       // Assert
       expect(response.status).toBe(400);
@@ -315,6 +338,7 @@ describe('Appointments API (e2e)', () => {
       // Act
       const response = await request(app.getHttpServer())
         .patch(`/api/appointments/${created.body.id}`)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({ name: 'Updated Name', status: 'confirmed' });
 
       // Assert
@@ -336,6 +360,7 @@ describe('Appointments API (e2e)', () => {
       // Act
       await request(app.getHttpServer())
         .patch(`/api/appointments/${created.body.id}`)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({ name: 'Updated Name' });
       const updatedRow = await db('appointments')
         .where('id', created.body.id)
@@ -353,6 +378,7 @@ describe('Appointments API (e2e)', () => {
       // Act
       const response = await request(app.getHttpServer())
         .patch(`/api/appointments/${fakeId}`)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({ name: 'Updated Name' });
 
       // Assert
@@ -368,6 +394,7 @@ describe('Appointments API (e2e)', () => {
       // Act
       const response = await request(app.getHttpServer())
         .patch(`/api/appointments/${created.body.id}`)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({ email: 'not-valid' });
 
       // Assert
@@ -385,9 +412,9 @@ describe('Appointments API (e2e)', () => {
         .send(validAppointment);
 
       // Act
-      const response = await request(app.getHttpServer()).delete(
-        `/api/appointments/${created.body.id}`,
-      );
+      const response = await request(app.getHttpServer())
+        .delete(`/api/appointments/${created.body.id}`)
+        .set('Authorization', `Bearer ${authToken}`);
 
       // Assert
       expect(response.status).toBe(204);
@@ -398,9 +425,9 @@ describe('Appointments API (e2e)', () => {
       const fakeId = '00000000-0000-0000-0000-000000000000';
 
       // Act
-      const response = await request(app.getHttpServer()).delete(
-        `/api/appointments/${fakeId}`,
-      );
+      const response = await request(app.getHttpServer())
+        .delete(`/api/appointments/${fakeId}`)
+        .set('Authorization', `Bearer ${authToken}`);
 
       // Assert
       expect(response.status).toBe(404);
@@ -411,14 +438,14 @@ describe('Appointments API (e2e)', () => {
       const created = await request(app.getHttpServer())
         .post('/api/appointments')
         .send(validAppointment);
-      await request(app.getHttpServer()).delete(
-        `/api/appointments/${created.body.id}`,
-      );
+      await request(app.getHttpServer())
+        .delete(`/api/appointments/${created.body.id}`)
+        .set('Authorization', `Bearer ${authToken}`);
 
       // Act
-      const getResponse = await request(app.getHttpServer()).get(
-        `/api/appointments/${created.body.id}`,
-      );
+      const getResponse = await request(app.getHttpServer())
+        .get(`/api/appointments/${created.body.id}`)
+        .set('Authorization', `Bearer ${authToken}`);
 
       // Assert — gone from both API and database
       expect(getResponse.status).toBe(404);
