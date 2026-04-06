@@ -1,8 +1,39 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor, within, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import AppointmentsTable from './AppointmentsTable';
 import { setToken, clearToken } from '../lib/auth';
+
+// ── Mock WebSocket for real-time tests ──────────────────────
+
+class MockWebSocket {
+  static instances: MockWebSocket[] = [];
+  url: string;
+  onopen: (() => void) | null = null;
+  onmessage: ((e: { data: string }) => void) | null = null;
+  onclose: (() => void) | null = null;
+  onerror: ((e: unknown) => void) | null = null;
+  readyState = 0;
+  closeCalled = false;
+
+  constructor(url: string) {
+    this.url = url;
+    MockWebSocket.instances.push(this);
+  }
+  close() {
+    this.closeCalled = true;
+    this.readyState = 3;
+  }
+  simulateOpen() {
+    this.readyState = 1;
+    this.onopen?.();
+  }
+  simulateMessage(event: string, data: unknown) {
+    this.onmessage?.({ data: JSON.stringify({ event, data }) });
+  }
+}
+
+const originalWebSocket = globalThis.WebSocket;
 
 const mockAppointments = [
   {
@@ -64,8 +95,14 @@ function rowActions(name: string) {
 describe('AppointmentsTable', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    MockWebSocket.instances = [];
+    globalThis.WebSocket = MockWebSocket as unknown as typeof WebSocket;
     clearToken();
     setToken('test-jwt-token');
+  });
+
+  afterEach(() => {
+    globalThis.WebSocket = originalWebSocket;
   });
 
   // ── Existing rendering tests ──────────────────────────────
@@ -411,6 +448,98 @@ describe('AppointmentsTable', () => {
         expect(screen.queryByRole('heading', { name: /edit appointment/i })).toBeNull();
       });
       expect(screen.getByText('Jane Smith')).toBeDefined();
+    });
+  });
+
+  // ── Phase 6: WebSocket real-time updates ──────────────────
+
+  describe('real-time updates', () => {
+    it('adds a new row when appointment:created is received', async () => {
+      // Arrange
+      await renderTable();
+      const ws = MockWebSocket.instances[0];
+      act(() => ws.simulateOpen());
+      const newAppointment = {
+        id: 'new-1',
+        name: 'New Patient',
+        email: 'new@example.com',
+        phone: '07700900000',
+        description: 'Walk-in',
+        appointmentDate: '2026-05-01T10:00:00.000Z',
+        status: 'pending',
+        createdAt: '2026-04-06T12:00:00.000Z',
+      };
+
+      // Act
+      act(() => {
+        ws.simulateMessage('appointment:created', newAppointment);
+      });
+
+      // Assert
+      await waitFor(() => {
+        expect(screen.getByText('New Patient')).toBeDefined();
+      });
+      // Original rows still present
+      expect(screen.getByText('Jane Smith')).toBeDefined();
+    });
+
+    it('updates an existing row when appointment:updated is received', async () => {
+      // Arrange
+      await renderTable();
+      const ws = MockWebSocket.instances[0];
+      act(() => ws.simulateOpen());
+
+      // Act — update Jane Smith's status to approved
+      act(() => {
+        ws.simulateMessage('appointment:updated', {
+          ...mockAppointments[0],
+          status: 'approved',
+        });
+      });
+
+      // Assert — row should now be green
+      await waitFor(() => {
+        const row = screen.getByText('Jane Smith').closest('tr');
+        expect(row?.className).toContain('green');
+      });
+    });
+
+    it('removes a row when appointment:deleted is received', async () => {
+      // Arrange
+      await renderTable();
+      const ws = MockWebSocket.instances[0];
+      act(() => ws.simulateOpen());
+
+      // Act — delete Jane Smith (id: '1')
+      act(() => {
+        ws.simulateMessage('appointment:deleted', { id: '1' });
+      });
+
+      // Assert
+      await waitFor(() => {
+        expect(screen.queryByText('Jane Smith')).toBeNull();
+      });
+      // Other rows still present
+      expect(screen.getByText('John Doe')).toBeDefined();
+    });
+
+    it('shows a connection status indicator', async () => {
+      // Arrange
+      await renderTable();
+
+      // Assert — initially shows connecting
+      const indicator = screen.getByTestId('ws-status');
+      expect(indicator.textContent).toContain('Connecting');
+
+      // Act — connect
+      act(() => {
+        MockWebSocket.instances[0].simulateOpen();
+      });
+
+      // Assert — switches to Live
+      await waitFor(() => {
+        expect(indicator.textContent).toContain('Live');
+      });
     });
   });
 });

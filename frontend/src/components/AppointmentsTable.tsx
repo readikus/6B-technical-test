@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { authFetch } from '../lib/auth';
 import { approveAppointment, declineAppointment, deleteAppointment } from '../lib/api';
+import { useAppointmentSocket } from '../lib/useAppointmentSocket';
 import type { Appointment } from '../lib/types';
 import EditModal from './EditModal';
 
@@ -14,6 +15,8 @@ export default function AppointmentsTable() {
   const [error, setError] = useState('');
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // ── REST: initial fetch ───────────────────────────────────
 
   useEffect(() => {
     let cancelled = false;
@@ -36,6 +39,30 @@ export default function AppointmentsTable() {
       cancelled = true;
     };
   }, []);
+
+  // ── WebSocket: real-time updates ──────────────────────────
+
+  const handleWsCreated = useCallback((apt: Appointment) => {
+    setAppointments((prev) => {
+      // Avoid duplicates if we already have it (e.g. from our own POST)
+      if (prev.some((a) => a.id === apt.id)) return prev;
+      return [...prev, apt];
+    });
+  }, []);
+
+  const handleWsUpdated = useCallback((apt: Appointment) => {
+    setAppointments((prev) => prev.map((a) => (a.id === apt.id ? apt : a)));
+  }, []);
+
+  const handleWsDeleted = useCallback((id: string) => {
+    setAppointments((prev) => prev.filter((a) => a.id !== id));
+  }, []);
+
+  const { connected } = useAppointmentSocket({
+    onCreated: handleWsCreated,
+    onUpdated: handleWsUpdated,
+    onDeleted: handleWsDeleted,
+  });
 
   function replaceAppointment(updated: Appointment) {
     setAppointments((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
@@ -100,6 +127,23 @@ export default function AppointmentsTable() {
 
   return (
     <>
+      <div className="mb-3 flex justify-end">
+        <span
+          data-testid="ws-status"
+          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
+            connected
+              ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300'
+              : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400'
+          }`}
+        >
+          <span
+            className={`h-1.5 w-1.5 rounded-full ${
+              connected ? 'bg-green-500 animate-pulse' : 'bg-zinc-400'
+            }`}
+          />
+          {connected ? 'Live' : 'Connecting...'}
+        </span>
+      </div>
       <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
         <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-700">
           <thead className="bg-zinc-50 dark:bg-zinc-800">
