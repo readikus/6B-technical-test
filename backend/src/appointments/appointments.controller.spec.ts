@@ -71,6 +71,7 @@ describe('AppointmentsController', () => {
     }).compile();
 
     app = module.createNestApplication();
+    app.setGlobalPrefix('api');
     await app.init();
   }, 30_000);
 
@@ -89,7 +90,7 @@ describe('AppointmentsController', () => {
     it('returns 201 for valid input', async () => {
       // Arrange / Act
       const res = await request(app.getHttpServer())
-        .post('/appointments')
+        .post('/api/appointments')
         .send(validAppointment);
 
       // Assert
@@ -102,7 +103,7 @@ describe('AppointmentsController', () => {
     it('returns 400 when required fields are missing', async () => {
       // Arrange / Act
       const res = await request(app.getHttpServer())
-        .post('/appointments')
+        .post('/api/appointments')
         .send({});
 
       // Assert
@@ -114,7 +115,7 @@ describe('AppointmentsController', () => {
     it('returns 400 for invalid email', async () => {
       // Arrange / Act
       const res = await request(app.getHttpServer())
-        .post('/appointments')
+        .post('/api/appointments')
         .send({ ...validAppointment, email: 'not-an-email' });
 
       // Assert
@@ -124,7 +125,7 @@ describe('AppointmentsController', () => {
     it('returns 400 for invalid phone', async () => {
       // Arrange / Act
       const res = await request(app.getHttpServer())
-        .post('/appointments')
+        .post('/api/appointments')
         .send({ ...validAppointment, phone: 'abc' });
 
       // Assert
@@ -134,7 +135,7 @@ describe('AppointmentsController', () => {
     it('returns 400 for HTML tags in name (XSS)', async () => {
       // Arrange / Act
       const res = await request(app.getHttpServer())
-        .post('/appointments')
+        .post('/api/appointments')
         .send({ ...validAppointment, name: '<script>alert(1)</script>' });
 
       // Assert
@@ -144,7 +145,7 @@ describe('AppointmentsController', () => {
     it('returns 400 for HTML tags in description (XSS)', async () => {
       // Arrange / Act
       const res = await request(app.getHttpServer())
-        .post('/appointments')
+        .post('/api/appointments')
         .send({
           ...validAppointment,
           description: '<img src=x onerror=alert(1)>',
@@ -160,7 +161,7 @@ describe('AppointmentsController', () => {
   describe('GET /appointments', () => {
     it('returns 200 with an empty array', async () => {
       // Arrange / Act
-      const res = await request(app.getHttpServer()).get('/appointments');
+      const res = await request(app.getHttpServer()).get('/api/appointments');
 
       // Assert
       expect(res.status).toBe(200);
@@ -170,11 +171,11 @@ describe('AppointmentsController', () => {
     it('returns 200 with all appointments', async () => {
       // Arrange
       await request(app.getHttpServer())
-        .post('/appointments')
+        .post('/api/appointments')
         .send(validAppointment);
 
       // Act
-      const res = await request(app.getHttpServer()).get('/appointments');
+      const res = await request(app.getHttpServer()).get('/api/appointments');
 
       // Assert
       expect(res.status).toBe(200);
@@ -189,12 +190,12 @@ describe('AppointmentsController', () => {
     it('returns 200 for an existing appointment', async () => {
       // Arrange
       const created = await request(app.getHttpServer())
-        .post('/appointments')
+        .post('/api/appointments')
         .send(validAppointment);
 
       // Act
       const res = await request(app.getHttpServer()).get(
-        `/appointments/${created.body.id}`,
+        `/api/appointments/${created.body.id}`,
       );
 
       // Assert
@@ -205,7 +206,7 @@ describe('AppointmentsController', () => {
     it('returns 404 for a non-existent UUID', async () => {
       // Arrange / Act
       const res = await request(app.getHttpServer()).get(
-        '/appointments/00000000-0000-0000-0000-000000000000',
+        '/api/appointments/00000000-0000-0000-0000-000000000000',
       );
 
       // Assert
@@ -215,7 +216,7 @@ describe('AppointmentsController', () => {
     it('returns 400 for an invalid UUID format', async () => {
       // Arrange / Act
       const res = await request(app.getHttpServer()).get(
-        '/appointments/not-a-uuid',
+        '/api/appointments/not-a-uuid',
       );
 
       // Assert
@@ -229,12 +230,12 @@ describe('AppointmentsController', () => {
     it('returns 200 with the updated appointment', async () => {
       // Arrange
       const created = await request(app.getHttpServer())
-        .post('/appointments')
+        .post('/api/appointments')
         .send(validAppointment);
 
       // Act
       const res = await request(app.getHttpServer())
-        .patch(`/appointments/${created.body.id}`)
+        .patch(`/api/appointments/${created.body.id}`)
         .send({ name: 'Updated Name' });
 
       // Assert
@@ -246,7 +247,7 @@ describe('AppointmentsController', () => {
     it('returns 404 for a non-existent UUID', async () => {
       // Arrange / Act
       const res = await request(app.getHttpServer())
-        .patch('/appointments/00000000-0000-0000-0000-000000000000')
+        .patch('/api/appointments/00000000-0000-0000-0000-000000000000')
         .send({ name: 'Updated' });
 
       // Assert
@@ -256,12 +257,12 @@ describe('AppointmentsController', () => {
     it('returns 400 for invalid email in update', async () => {
       // Arrange
       const created = await request(app.getHttpServer())
-        .post('/appointments')
+        .post('/api/appointments')
         .send(validAppointment);
 
       // Act
       const res = await request(app.getHttpServer())
-        .patch(`/appointments/${created.body.id}`)
+        .patch(`/api/appointments/${created.body.id}`)
         .send({ email: 'bad' });
 
       // Assert
@@ -271,7 +272,7 @@ describe('AppointmentsController', () => {
     it('returns 400 for invalid UUID format', async () => {
       // Arrange / Act
       const res = await request(app.getHttpServer())
-        .patch('/appointments/not-valid')
+        .patch('/api/appointments/not-valid')
         .send({ name: 'Test' });
 
       // Assert
@@ -285,12 +286,12 @@ describe('AppointmentsController', () => {
     it('returns 204 on successful deletion', async () => {
       // Arrange
       const created = await request(app.getHttpServer())
-        .post('/appointments')
+        .post('/api/appointments')
         .send(validAppointment);
 
       // Act
       const res = await request(app.getHttpServer()).delete(
-        `/appointments/${created.body.id}`,
+        `/api/appointments/${created.body.id}`,
       );
 
       // Assert
@@ -300,7 +301,7 @@ describe('AppointmentsController', () => {
     it('returns 404 for a non-existent UUID', async () => {
       // Arrange / Act
       const res = await request(app.getHttpServer()).delete(
-        '/appointments/00000000-0000-0000-0000-000000000000',
+        '/api/appointments/00000000-0000-0000-0000-000000000000',
       );
 
       // Assert
@@ -310,7 +311,7 @@ describe('AppointmentsController', () => {
     it('returns 400 for an invalid UUID format', async () => {
       // Arrange / Act
       const res = await request(app.getHttpServer()).delete(
-        '/appointments/not-valid',
+        '/api/appointments/not-valid',
       );
 
       // Assert

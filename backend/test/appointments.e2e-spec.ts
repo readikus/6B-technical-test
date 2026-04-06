@@ -63,6 +63,7 @@ describe('Appointments API (e2e)', () => {
     app = moduleFixture.createNestApplication();
     app.use(helmet());
     app.enableCors({ origin: ['http://localhost:3000'] });
+    app.setGlobalPrefix('api');
     await app.init();
   }, 30_000);
 
@@ -84,7 +85,7 @@ describe('Appointments API (e2e)', () => {
 
       // Act
       const response = await request(app.getHttpServer())
-        .post('/appointments')
+        .post('/api/appointments')
         .send(payload);
 
       // Assert
@@ -108,7 +109,7 @@ describe('Appointments API (e2e)', () => {
 
       // Act
       const response = await request(app.getHttpServer())
-        .post('/appointments')
+        .post('/api/appointments')
         .send(payload);
       const row = await db('appointments')
         .where('id', response.body.id)
@@ -127,7 +128,7 @@ describe('Appointments API (e2e)', () => {
 
       // Act
       const response = await request(app.getHttpServer())
-        .post('/appointments')
+        .post('/api/appointments')
         .send(payload);
 
       // Assert
@@ -141,7 +142,7 @@ describe('Appointments API (e2e)', () => {
 
       // Act
       const response = await request(app.getHttpServer())
-        .post('/appointments')
+        .post('/api/appointments')
         .send(payload);
 
       // Assert
@@ -154,7 +155,7 @@ describe('Appointments API (e2e)', () => {
 
       // Act
       const response = await request(app.getHttpServer())
-        .post('/appointments')
+        .post('/api/appointments')
         .send(payload);
 
       // Assert
@@ -170,7 +171,7 @@ describe('Appointments API (e2e)', () => {
 
       // Act
       const response = await request(app.getHttpServer())
-        .post('/appointments')
+        .post('/api/appointments')
         .send(payload);
 
       // Assert
@@ -186,7 +187,7 @@ describe('Appointments API (e2e)', () => {
 
       // Act
       const response = await request(app.getHttpServer())
-        .post('/appointments')
+        .post('/api/appointments')
         .send(payload);
 
       // Assert
@@ -200,7 +201,7 @@ describe('Appointments API (e2e)', () => {
 
       // Act
       const response = await request(app.getHttpServer())
-        .post('/appointments')
+        .post('/api/appointments')
         .send(payload);
 
       // Assert — request succeeds; Knex parameterised queries treat it as data
@@ -220,7 +221,9 @@ describe('Appointments API (e2e)', () => {
       // Arrange — table is truncated in beforeEach
 
       // Act
-      const response = await request(app.getHttpServer()).get('/appointments');
+      const response = await request(app.getHttpServer()).get(
+        '/api/appointments',
+      );
 
       // Assert
       expect(response.status).toBe(200);
@@ -230,10 +233,10 @@ describe('Appointments API (e2e)', () => {
     it('returns all appointments with decrypted PII', async () => {
       // Arrange — create two appointments via the API
       await request(app.getHttpServer())
-        .post('/appointments')
+        .post('/api/appointments')
         .send(validAppointment);
       await request(app.getHttpServer())
-        .post('/appointments')
+        .post('/api/appointments')
         .send({
           ...validAppointment,
           name: 'John Doe',
@@ -241,7 +244,9 @@ describe('Appointments API (e2e)', () => {
         });
 
       // Act
-      const response = await request(app.getHttpServer()).get('/appointments');
+      const response = await request(app.getHttpServer()).get(
+        '/api/appointments',
+      );
 
       // Assert
       expect(response.status).toBe(200);
@@ -258,12 +263,12 @@ describe('Appointments API (e2e)', () => {
     it('returns a single appointment with decrypted PII', async () => {
       // Arrange
       const created = await request(app.getHttpServer())
-        .post('/appointments')
+        .post('/api/appointments')
         .send(validAppointment);
 
       // Act
       const response = await request(app.getHttpServer()).get(
-        `/appointments/${created.body.id}`,
+        `/api/appointments/${created.body.id}`,
       );
 
       // Assert
@@ -280,7 +285,7 @@ describe('Appointments API (e2e)', () => {
 
       // Act
       const response = await request(app.getHttpServer()).get(
-        `/appointments/${fakeId}`,
+        `/api/appointments/${fakeId}`,
       );
 
       // Assert
@@ -290,7 +295,7 @@ describe('Appointments API (e2e)', () => {
     it('returns 400 for an invalid UUID format', async () => {
       // Arrange / Act
       const response = await request(app.getHttpServer()).get(
-        '/appointments/not-a-uuid',
+        '/api/appointments/not-a-uuid',
       );
 
       // Assert
@@ -304,12 +309,12 @@ describe('Appointments API (e2e)', () => {
     it('partially updates appointment fields', async () => {
       // Arrange
       const created = await request(app.getHttpServer())
-        .post('/appointments')
+        .post('/api/appointments')
         .send(validAppointment);
 
       // Act
       const response = await request(app.getHttpServer())
-        .patch(`/appointments/${created.body.id}`)
+        .patch(`/api/appointments/${created.body.id}`)
         .send({ name: 'Updated Name', status: 'confirmed' });
 
       // Assert
@@ -322,7 +327,7 @@ describe('Appointments API (e2e)', () => {
     it('re-encrypts updated PII fields in the database', async () => {
       // Arrange
       const created = await request(app.getHttpServer())
-        .post('/appointments')
+        .post('/api/appointments')
         .send(validAppointment);
       const originalRow = await db('appointments')
         .where('id', created.body.id)
@@ -330,7 +335,7 @@ describe('Appointments API (e2e)', () => {
 
       // Act
       await request(app.getHttpServer())
-        .patch(`/appointments/${created.body.id}`)
+        .patch(`/api/appointments/${created.body.id}`)
         .send({ name: 'Updated Name' });
       const updatedRow = await db('appointments')
         .where('id', created.body.id)
@@ -347,7 +352,7 @@ describe('Appointments API (e2e)', () => {
 
       // Act
       const response = await request(app.getHttpServer())
-        .patch(`/appointments/${fakeId}`)
+        .patch(`/api/appointments/${fakeId}`)
         .send({ name: 'Updated Name' });
 
       // Assert
@@ -357,12 +362,12 @@ describe('Appointments API (e2e)', () => {
     it('validates email format on update', async () => {
       // Arrange
       const created = await request(app.getHttpServer())
-        .post('/appointments')
+        .post('/api/appointments')
         .send(validAppointment);
 
       // Act
       const response = await request(app.getHttpServer())
-        .patch(`/appointments/${created.body.id}`)
+        .patch(`/api/appointments/${created.body.id}`)
         .send({ email: 'not-valid' });
 
       // Assert
@@ -376,12 +381,12 @@ describe('Appointments API (e2e)', () => {
     it('deletes an appointment and returns 204', async () => {
       // Arrange
       const created = await request(app.getHttpServer())
-        .post('/appointments')
+        .post('/api/appointments')
         .send(validAppointment);
 
       // Act
       const response = await request(app.getHttpServer()).delete(
-        `/appointments/${created.body.id}`,
+        `/api/appointments/${created.body.id}`,
       );
 
       // Assert
@@ -394,7 +399,7 @@ describe('Appointments API (e2e)', () => {
 
       // Act
       const response = await request(app.getHttpServer()).delete(
-        `/appointments/${fakeId}`,
+        `/api/appointments/${fakeId}`,
       );
 
       // Assert
@@ -404,15 +409,15 @@ describe('Appointments API (e2e)', () => {
     it('confirms the appointment no longer exists after deletion', async () => {
       // Arrange
       const created = await request(app.getHttpServer())
-        .post('/appointments')
+        .post('/api/appointments')
         .send(validAppointment);
       await request(app.getHttpServer()).delete(
-        `/appointments/${created.body.id}`,
+        `/api/appointments/${created.body.id}`,
       );
 
       // Act
       const getResponse = await request(app.getHttpServer()).get(
-        `/appointments/${created.body.id}`,
+        `/api/appointments/${created.body.id}`,
       );
 
       // Assert — gone from both API and database
@@ -437,7 +442,7 @@ describe('Appointments API (e2e)', () => {
     it('returns CORS headers for the frontend origin', async () => {
       // Arrange / Act
       const response = await request(app.getHttpServer())
-        .options('/appointments')
+        .options('/api/appointments')
         .set('Origin', 'http://localhost:3000')
         .set('Access-Control-Request-Method', 'POST');
 

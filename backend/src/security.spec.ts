@@ -20,6 +20,7 @@ describe('Security middleware', () => {
     app = module.createNestApplication();
     app.use(helmet());
     app.enableCors({ origin: ['http://localhost:3000'] });
+    app.setGlobalPrefix('api');
     await app.init();
   }, 15_000);
 
@@ -30,7 +31,7 @@ describe('Security middleware', () => {
   describe('Helmet', () => {
     it('sets x-content-type-options to nosniff', async () => {
       // Arrange / Act
-      const res = await request(app.getHttpServer()).get('/');
+      const res = await request(app.getHttpServer()).get('/api');
 
       // Assert
       expect(res.headers['x-content-type-options']).toBe('nosniff');
@@ -38,7 +39,7 @@ describe('Security middleware', () => {
 
     it('sets x-frame-options to SAMEORIGIN', async () => {
       // Arrange / Act
-      const res = await request(app.getHttpServer()).get('/');
+      const res = await request(app.getHttpServer()).get('/api');
 
       // Assert
       expect(res.headers['x-frame-options']).toBe('SAMEORIGIN');
@@ -49,7 +50,7 @@ describe('Security middleware', () => {
     it('returns access-control-allow-origin for allowed origin', async () => {
       // Arrange / Act
       const res = await request(app.getHttpServer())
-        .options('/')
+        .options('/api')
         .set('Origin', 'http://localhost:3000')
         .set('Access-Control-Request-Method', 'GET');
 
@@ -62,7 +63,7 @@ describe('Security middleware', () => {
     it('does not return access-control-allow-origin for disallowed origin', async () => {
       // Arrange / Act
       const res = await request(app.getHttpServer())
-        .options('/')
+        .options('/api')
         .set('Origin', 'http://evil.com')
         .set('Access-Control-Request-Method', 'GET');
 
