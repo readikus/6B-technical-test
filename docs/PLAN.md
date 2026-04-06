@@ -29,12 +29,15 @@ Integration tests run against real PostgreSQL in Docker — no mocking the datab
 - [x] Docker entrypoint runs migrations + seed on startup
 
 ### Phase 2: Appointment API with Full Test Coverage
-- [ ] Knex database module for NestJS
-- [ ] Appointment CRUD endpoints (POST, GET, PATCH, DELETE)
-- [ ] Zod input validation (email, phone, required fields)
-- [ ] Encryption/decryption of PII fields through the API layer
-- [ ] Helmet middleware + CORS configuration
-- [ ] Integration tests: validation, SQL injection, XSS payloads
+- [x] Knex database module for NestJS
+- [x] Appointment CRUD endpoints (POST, GET, PATCH, DELETE)
+- [x] Zod input validation (email, phone, required fields)
+- [x] Encryption/decryption of PII fields through the API layer
+- [x] Helmet middleware + CORS configuration
+- [x] Integration tests: validation, SQL injection, XSS payloads
+- [x] Repository/Service/Controller separation
+- [x] Observer pattern for audit logging (EventEmitter2 → AuditListener)
+- [x] 114 tests across 13 files — all against real Postgres, no mocks
 
 ### Phase 3: Patient-Facing Booking Form
 - [ ] Appointment request form (name, date/time, description, phone, email)
@@ -72,12 +75,12 @@ Integration tests run against real PostgreSQL in Docker — no mocking the datab
 
 ## Security Checklist
 
-- [ ] Helmet middleware on NestJS
-- [ ] AES-256-GCM encryption at rest for all PII fields
+- [x] Helmet middleware on NestJS
+- [x] AES-256-GCM encryption at rest for all PII fields
 - [ ] BCrypt password hashing (10 rounds)
 - [ ] JWT auth with 8hr expiry
-- [ ] Zod input validation
-- [ ] Parameterised queries via Knex (no raw SQL)
-- [ ] CORS configured
+- [x] Zod input validation
+- [x] Parameterised queries via Knex (no raw SQL)
+- [x] CORS configured
 - [ ] `npm audit` clean on both projects
-- [ ] E2E tests for SQL injection and XSS payloads
+- [x] E2E tests for SQL injection and XSS payloads
