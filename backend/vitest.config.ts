@@ -6,6 +6,7 @@ export default defineConfig({
     globals: true,
     root: './',
     include: ['src/**/*.spec.ts', 'test/**/*.e2e-spec.ts'],
+    fileParallelism: false,
     coverage: {
       exclude: ['src/**/*.module.ts'],
     },
