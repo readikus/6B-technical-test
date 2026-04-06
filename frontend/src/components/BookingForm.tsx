@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ChangeEvent, type FormEvent } from 'react';
+import { useState, type ChangeEvent, type FormEvent, type ReactElement, cloneElement } from 'react';
 import { validateBookingForm, type BookingFormData, type ValidationErrors } from '../lib/validation';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
@@ -87,7 +87,7 @@ export default function BookingForm() {
       </h2>
 
       {successMessage && (
-        <div className="rounded-md bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 p-4 text-green-800 dark:text-green-200 text-sm">
+        <div role="status" className="rounded-md bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 p-4 text-green-800 dark:text-green-200 text-sm">
           {successMessage}
         </div>
       )}
@@ -101,11 +101,12 @@ export default function BookingForm() {
         </div>
       )}
 
-      <Field label="Name" name="name" error={errors.name}>
+      <Field label="Name" name="name" error={errors.name} required>
         <input
           id="name"
           name="name"
           type="text"
+          autoComplete="name"
           value={formData.name}
           onChange={handleChange}
           className={inputClasses(errors.name)}
@@ -113,11 +114,12 @@ export default function BookingForm() {
         />
       </Field>
 
-      <Field label="Email" name="email" error={errors.email}>
+      <Field label="Email" name="email" error={errors.email} required>
         <input
           id="email"
           name="email"
           type="email"
+          autoComplete="email"
           value={formData.email}
           onChange={handleChange}
           className={inputClasses(errors.email)}
@@ -125,11 +127,12 @@ export default function BookingForm() {
         />
       </Field>
 
-      <Field label="Phone" name="phone" error={errors.phone}>
+      <Field label="Phone" name="phone" error={errors.phone} required>
         <input
           id="phone"
           name="phone"
           type="tel"
+          autoComplete="tel"
           value={formData.phone}
           onChange={handleChange}
           className={inputClasses(errors.phone)}
@@ -137,7 +140,7 @@ export default function BookingForm() {
         />
       </Field>
 
-      <Field label="Appointment Date & Time" name="appointmentDate" error={errors.appointmentDate}>
+      <Field label="Appointment Date & Time" name="appointmentDate" error={errors.appointmentDate} required>
         <input
           id="appointmentDate"
           name="appointmentDate"
@@ -148,7 +151,7 @@ export default function BookingForm() {
         />
       </Field>
 
-      <Field label="Description" name="description" error={errors.description}>
+      <Field label="Description" name="description" error={errors.description} required>
         <textarea
           id="description"
           name="description"
@@ -171,24 +174,45 @@ export default function BookingForm() {
   );
 }
 
+/**
+ * Accessible field wrapper. Injects aria-describedby, aria-invalid,
+ * and aria-required into its child input/textarea via cloneElement.
+ */
 function Field({
   label,
   name,
   error,
+  required,
   children,
 }: {
   label: string;
   name: string;
   error?: string;
-  children: React.ReactNode;
+  required?: boolean;
+  children: ReactElement<React.InputHTMLAttributes<HTMLInputElement | HTMLTextAreaElement>>;
 }) {
+  const errorId = `${name}-error`;
+
+  const ariaProps: Record<string, string | boolean | undefined> = {};
+  if (error) {
+    ariaProps['aria-describedby'] = errorId;
+    ariaProps['aria-invalid'] = true;
+  }
+  if (required) {
+    ariaProps['aria-required'] = true;
+  }
+
   return (
     <div>
       <label htmlFor={name} className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
         {label}
       </label>
-      {children}
-      {error && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {cloneElement(children, ariaProps)}
+      {error && (
+        <p id={errorId} className="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

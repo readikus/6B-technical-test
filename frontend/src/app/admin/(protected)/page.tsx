@@ -1,4 +1,4 @@
-import AppointmentsTable from '../../components/AppointmentsTable';
+import AppointmentsTable from '../../../components/AppointmentsTable';
 
 export default function AdminDashboardPage() {
   return (

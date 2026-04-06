@@ -76,6 +76,10 @@ export default function LoginForm() {
           id="email"
           name="email"
           type="email"
+          autoComplete="email"
+          aria-required
+          aria-invalid={!!errors.email || undefined}
+          aria-describedby={errors.email ? 'email-error' : undefined}
           value={email}
           onChange={(e) => {
             setEmail(e.target.value);
@@ -86,7 +90,11 @@ export default function LoginForm() {
           }`}
           placeholder="admin@sixbee.com"
         />
-        {errors.email && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.email}</p>}
+        {errors.email && (
+          <p id="email-error" className="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
+            {errors.email}
+          </p>
+        )}
       </div>
 
       <div>
@@ -97,6 +105,10 @@ export default function LoginForm() {
           id="password"
           name="password"
           type="password"
+          autoComplete="current-password"
+          aria-required
+          aria-invalid={!!errors.password || undefined}
+          aria-describedby={errors.password ? 'password-error' : undefined}
           value={password}
           onChange={(e) => {
             setPassword(e.target.value);
@@ -107,7 +119,11 @@ export default function LoginForm() {
           }`}
           placeholder="Enter your password"
         />
-        {errors.password && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.password}</p>}
+        {errors.password && (
+          <p id="password-error" className="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
+            {errors.password}
+          </p>
+        )}
       </div>
 
       <button
