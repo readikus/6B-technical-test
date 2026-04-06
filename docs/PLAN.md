@@ -66,7 +66,13 @@ Integration tests run against real PostgreSQL in Docker — no mocking the datab
 - [ ] Real-time updates when new appointments are submitted
 
 ### Phase 7 (Nice to have): FHIR Format
-- [ ] Appointment records available in FHIR R4 format
+- [x] FHIR R4 Appointment resource mapper (pending=proposed, confirmed=booked, cancelled=cancelled)
+- [x] FHIR R4 Bundle (searchset) mapper for appointment lists
+- [x] GET /api/fhir/Appointment — list all as FHIR Bundle
+- [x] GET /api/fhir/Appointment/:id — single FHIR Appointment resource
+- [x] Patient PII embedded as contained resource with telecom (phone + email)
+- [x] Swagger docs for FHIR endpoints
+- [x] 18 unit tests for mapper (TDD)
 
 ### Phase 8 (Nice to have): Spring Boot API
 - [ ] Port API to Spring Boot (Java)

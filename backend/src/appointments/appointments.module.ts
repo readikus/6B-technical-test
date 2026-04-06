@@ -10,5 +10,6 @@ import { AuditModule } from '../audit/audit.module';
   imports: [AuthModule, AuditModule],
   controllers: [AppointmentsController],
   providers: [AppointmentsService, AppointmentsRepository, AppointmentsGateway],
+  exports: [AppointmentsService],
 })
 export class AppointmentsModule {}

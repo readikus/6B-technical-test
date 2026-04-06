@@ -46,10 +46,12 @@ This starts PostgreSQL, runs database migrations, seeds the admin user, and boot
 
 | What                  | URL                          |
 |-----------------------|------------------------------|
-| Patient booking form  | http://localhost:3000         |
-| Admin login           | http://localhost:3000/admin   |
-| Backend API           | http://localhost:3001         |
-| API documentation     | http://localhost:3001/api/docs |
+| Patient booking form  | http://localhost:3000                    |
+| Admin login           | http://localhost:3000/admin              |
+| Backend API           | http://localhost:3001                    |
+| API documentation     | http://localhost:3001/api/docs           |
+| FHIR R4 Bundle        | http://localhost:3001/api/fhir/Appointment |
+| FHIR R4 single        | http://localhost:3001/api/fhir/Appointment/:id |
 
 Log in to the admin area using the `ADMIN_EMAIL` and `ADMIN_PASSWORD` from your `.env` file.
 
@@ -116,6 +118,17 @@ Then re-run `act` to verify before pushing.
 ```
 
 For security design, database schema, and data flow diagrams see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## FHIR R4 Support
+
+Appointment records are available in [FHIR R4](https://hl7.org/fhir/R4/appointment.html) format via read-only endpoints:
+
+- `GET /api/fhir/Appointment` — all appointments as a FHIR `Bundle` (searchset)
+- `GET /api/fhir/Appointment/:id` — single `Appointment` resource
+
+**Status mapping:** `pending` &rarr; `proposed`, `confirmed` &rarr; `booked`, `cancelled` &rarr; `cancelled`
+
+Patient PII (name, phone, email) is embedded as a `contained` Patient resource within each Appointment. Swagger docs for these endpoints are available at `/api/docs`.
 
 ## Clean Build
 
