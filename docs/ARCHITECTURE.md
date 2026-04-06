@@ -66,7 +66,7 @@ SixBee HealthTech appointment booking system — a patient-facing form and an ad
 │ description  TEXT (enc) │       │ created_at   TIMESTAMP  │
 │ date_time    TIMESTAMP  │       │ updated_at   TIMESTAMP  │
 │                         │       └─────────────────────────┘
-│ status       VARCHAR    │  (pending | approved)
+│ status       VARCHAR    │  (pending | confirmed | cancelled)
 │ metadata     JSONB      │  (extensible without migrations)
 │ created_at   TIMESTAMP  │
 │ updated_at   TIMESTAMP  │
