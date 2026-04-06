@@ -1,0 +1,147 @@
+'use client';
+
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { bookingSchema, type BookingFormData } from '../lib/schemas';
+import { createAppointment } from '../lib/api';
+
+export default function BookingForm() {
+  const [success, setSuccess] = useState(false);
+  const [apiError, setApiError] = useState('');
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<BookingFormData>({
+    resolver: zodResolver(bookingSchema),
+    mode: 'onTouched',
+  });
+
+  async function onSubmit(data: BookingFormData) {
+    setApiError('');
+    setSuccess(false);
+
+    try {
+      await createAppointment(data);
+      setSuccess(true);
+      reset();
+    } catch (err) {
+      setApiError(err instanceof Error ? err.message : 'Something went wrong');
+    }
+  }
+
+  return (
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      noValidate
+      className="w-full max-w-lg mx-auto space-y-5 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900 sm:p-8"
+    >
+      <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 sm:text-2xl">
+        Book an Appointment
+      </h2>
+
+      {success && (
+        <div role="status" className="rounded-md bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 p-4 text-green-800 dark:text-green-200 text-sm">
+          Appointment booked successfully!
+        </div>
+      )}
+
+      {apiError && (
+        <div role="alert" className="rounded-md bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 p-4 text-red-800 dark:text-red-200 text-sm">
+          {apiError}
+        </div>
+      )}
+
+      <Field label="Full name" error={errors.name?.message}>
+        <input
+          {...register('name')}
+          id="name"
+          type="text"
+          className={inputCls(errors.name)}
+          placeholder="Jane Smith"
+        />
+      </Field>
+
+      <Field label="Email address" error={errors.email?.message}>
+        <input
+          {...register('email')}
+          id="email"
+          type="email"
+          className={inputCls(errors.email)}
+          placeholder="jane@example.com"
+        />
+      </Field>
+
+      <Field label="Phone number" error={errors.phone?.message}>
+        <input
+          {...register('phone')}
+          id="phone"
+          type="tel"
+          className={inputCls(errors.phone)}
+          placeholder="07700 900123"
+        />
+      </Field>
+
+      <Field label="Preferred date and time" error={errors.date_time?.message}>
+        <input
+          {...register('date_time')}
+          id="date_time"
+          type="datetime-local"
+          className={inputCls(errors.date_time)}
+        />
+      </Field>
+
+      <Field label="Reason for appointment" error={errors.description?.message}>
+        <textarea
+          {...register('description')}
+          id="description"
+          rows={3}
+          className={inputCls(errors.description)}
+          placeholder="Describe why you need an appointment"
+        />
+      </Field>
+
+      <button
+        type="submit"
+        disabled={isSubmitting}
+        className="w-full rounded-md bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+      >
+        {isSubmitting ? 'Submitting...' : 'Book Appointment'}
+      </button>
+    </form>
+  );
+}
+
+function Field({
+  label,
+  error,
+  children,
+}: {
+  label: string;
+  error?: string;
+  children: React.ReactNode;
+}) {
+  // Derive id from the child input's id for htmlFor
+  const childId = (children as React.ReactElement<{ id?: string }>)?.props?.id;
+
+  return (
+    <div>
+      <label htmlFor={childId} className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+        {label} <span className="text-red-500" aria-hidden="true">*</span>
+      </label>
+      {children}
+      {error && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{error}</p>}
+    </div>
+  );
+}
+
+function inputCls(error?: object): string {
+  const base =
+    'block w-full rounded-md border px-3 py-2 text-sm shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-zinc-800 dark:text-zinc-100';
+  return error
+    ? `${base} border-red-300 dark:border-red-600`
+    : `${base} border-zinc-300 dark:border-zinc-600`;
+}

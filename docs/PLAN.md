@@ -40,11 +40,11 @@ Integration tests run against real PostgreSQL in Docker — no mocking the datab
 - [x] 114 tests across 13 files — all against real Postgres, no mocks
 
 ### Phase 3: Patient-Facing Booking Form
-- [ ] Appointment request form (name, date/time, description, phone, email)
-- [ ] Client-side validation matching API Zod schemas
-- [ ] Form submission to API + success/error feedback
-- [ ] Responsive Tailwind styling
-- [ ] Frontend tests for form behaviour
+- [x] Appointment request form (name, date/time, description, phone, email)
+- [x] Client-side validation matching API Zod schemas (react-hook-form + zod)
+- [x] Form submission to API + success/error feedback
+- [x] Responsive Tailwind styling
+- [x] Frontend tests for form behaviour (21 tests)
 
 ### Phase 4: Admin Login + Appointment List View
 - [ ] JWT auth module (login endpoint, 8hr expiry)
