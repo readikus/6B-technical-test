@@ -19,7 +19,7 @@ A patient appointment booking system for SixBee HealthTech. Patients request app
 ### 1. Clone and configure
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/readikus/6B-technical-test
 cd 6B-Technical-Test
 cp .env.example .env
 ```
