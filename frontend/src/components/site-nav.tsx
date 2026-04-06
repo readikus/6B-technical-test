@@ -1,0 +1,58 @@
+'use client';
+
+import { usePathname } from 'next/navigation';
+import { LogOut } from 'lucide-react';
+import { useAuth } from '@/lib/auth-context';
+
+export function SiteNav() {
+  const pathname = usePathname();
+  const isAdminLogin = pathname === '/admin/login';
+  const isAdmin = pathname.startsWith('/admin');
+
+  if (isAdminLogin) {
+    return (
+      <nav aria-label="Login navigation" className="border-b bg-white">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
+          <span className="text-lg font-semibold text-gray-900">
+            SixBee HealthTech
+          </span>
+        </div>
+      </nav>
+    );
+  }
+
+  if (isAdmin) {
+    return <AdminNav />;
+  }
+
+  return (
+    <nav aria-label="Main navigation" className="border-b bg-white">
+      <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
+        <a href="/" className="text-lg font-semibold text-gray-900">
+          SixBee HealthTech
+        </a>
+      </div>
+    </nav>
+  );
+}
+
+function AdminNav() {
+  const { logout } = useAuth();
+
+  return (
+    <nav aria-label="Admin navigation" className="border-b bg-white">
+      <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
+        <a href="/admin" className="text-lg font-semibold text-gray-900">
+          SixBee HealthTech
+        </a>
+        <button
+          onClick={logout}
+          className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+        >
+          <LogOut className="h-4 w-4" aria-hidden="true" />
+          Logout
+        </button>
+      </div>
+    </nav>
+  );
+}

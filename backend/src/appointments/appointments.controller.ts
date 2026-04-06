@@ -8,6 +8,7 @@ import {
   Param,
   HttpCode,
   BadRequestException,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -21,6 +22,7 @@ import {
   createAppointmentSchema,
   updateAppointmentSchema,
 } from './appointments.validation';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { z } from 'zod';
 
 const UUID_REGEX =
@@ -66,6 +68,7 @@ export class AppointmentsController {
     return this.service.create(dto);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get()
   @ApiOperation({ summary: 'List all appointments' })
   @ApiResponse({ status: 200, description: 'Array of appointments', schema: { example: [appointmentExample] } })
@@ -73,6 +76,7 @@ export class AppointmentsController {
     return this.service.findAll();
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
   @ApiOperation({ summary: 'Get an appointment by ID' })
   @ApiParam({ name: 'id', format: 'uuid' })
@@ -84,6 +88,7 @@ export class AppointmentsController {
     return this.service.findOne(id);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Patch(':id')
   @ApiOperation({ summary: 'Partially update an appointment' })
   @ApiParam({ name: 'id', format: 'uuid' })
@@ -109,6 +114,7 @@ export class AppointmentsController {
     return this.service.update(id, dto);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
   @HttpCode(204)
   @ApiOperation({ summary: 'Delete an appointment' })

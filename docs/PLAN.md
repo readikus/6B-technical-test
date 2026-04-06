@@ -47,13 +47,13 @@ Integration tests run against real PostgreSQL in Docker — no mocking the datab
 - [x] Frontend tests for form behaviour (21 tests)
 
 ### Phase 4: Admin Login + Appointment List View
-- [ ] JWT auth module (login endpoint, 8hr expiry)
-- [ ] Auth guard for protected routes
-- [ ] Admin login page
-- [ ] Appointment table ordered by date
-- [ ] Approved rows highlighted with colour change
-- [ ] Navigation bar with logout
-- [ ] Frontend tests for auth flow and table rendering
+- [x] JWT auth module (login endpoint, 8hr expiry, env-var credentials)
+- [x] Auth guard for protected routes (GET, PATCH, DELETE require JWT)
+- [x] Admin login page (zod validation, error display, accessible markup)
+- [x] Appointment table ordered by date
+- [x] Confirmed rows highlighted with green background
+- [x] Navigation bar with logout
+- [x] Frontend tests for auth flow and table rendering (18 new tests, 38 total)
 
 ### Phase 5: Admin Full Functionality
 - [ ] Approve appointment (status toggle + row colour)
@@ -78,7 +78,7 @@ Integration tests run against real PostgreSQL in Docker — no mocking the datab
 - [x] Helmet middleware on NestJS
 - [x] AES-256-GCM encryption at rest for all PII fields
 - [x] BCrypt password hashing (10 rounds) — admin seed in `seeds/001_admin_user.ts`
-- [ ] JWT auth with 8hr expiry — planned for Phase 4
+- [x] JWT auth with 8hr expiry
 - [x] Zod input validation
 - [x] Parameterised queries via Knex (no raw SQL)
 - [x] CORS configured
