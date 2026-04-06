@@ -47,7 +47,7 @@ export default function AppointmentDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const { token, logout } = useAuth();
+  const { logout } = useAuth();
 
   const [appointment, setAppointment] = useState<ApiAppointment | null>(null);
   const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
@@ -55,9 +55,7 @@ export default function AppointmentDetailPage({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!token) return;
-
-    Promise.all([getAppointment(token, id), getAuditLog(token, id)])
+    Promise.all([getAppointment(id), getAuditLog(id)])
       .then(([apt, logs]) => {
         setAppointment(apt);
         setAuditLog(logs);
@@ -72,7 +70,7 @@ export default function AppointmentDetailPage({
         );
       })
       .finally(() => setLoading(false));
-  }, [token, id, logout]);
+  }, [id, logout]);
 
   if (loading) {
     return <p className="py-8 text-center text-gray-500">Loading...</p>;

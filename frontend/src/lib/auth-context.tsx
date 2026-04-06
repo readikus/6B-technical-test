@@ -4,72 +4,64 @@ import {
   createContext,
   useContext,
   useState,
-  useSyncExternalStore,
+  useEffect,
   useCallback,
   type ReactNode,
 } from 'react';
 import { useRouter } from 'next/navigation';
-import { loginRequest } from './api';
+import { loginRequest, logoutRequest, fetchCurrentAdmin } from './api';
 
 interface AuthContextValue {
-  token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const TOKEN_KEY = 'admin_token';
-
-function subscribeToStorage(callback: () => void) {
-  window.addEventListener('storage', callback);
-  return () => window.removeEventListener('storage', callback);
-}
-
-function getTokenSnapshot(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
-}
-
-function getServerSnapshot(): null {
-  return null;
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const storedToken = useSyncExternalStore(
-    subscribeToStorage,
-    getTokenSnapshot,
-    getServerSnapshot,
-  );
-  const [token, setToken] = useState<string | null>(storedToken);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchCurrentAdmin()
+      .then(() => {
+        if (!cancelled) setIsAuthenticated(true);
+      })
+      .catch(() => {
+        if (!cancelled) setIsAuthenticated(false);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const login = useCallback(
     async (email: string, password: string) => {
-      const data = await loginRequest(email, password);
-      localStorage.setItem(TOKEN_KEY, data.access_token);
-      setToken(data.access_token);
+      await loginRequest(email, password);
+      setIsAuthenticated(true);
       router.push('/admin');
     },
     [router],
   );
 
-  const logout = useCallback(() => {
-    localStorage.removeItem(TOKEN_KEY);
-    setToken(null);
+  const logout = useCallback(async () => {
+    await logoutRequest();
+    setIsAuthenticated(false);
     router.push('/admin/login');
   }, [router]);
-
-  const isAuthenticated = !!(token || storedToken);
-  const currentToken = token || storedToken;
 
   return (
     <AuthContext.Provider
       value={{
-        token: currentToken,
         isAuthenticated,
-        isLoading: false,
+        isLoading,
         login,
         logout,
       }}

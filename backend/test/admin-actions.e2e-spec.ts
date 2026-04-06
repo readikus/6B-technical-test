@@ -4,6 +4,7 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import Knex from 'knex';
 import bcrypt from 'bcrypt';
+import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import * as path from 'path';
 import { AppModule } from '../src/app.module';
@@ -11,7 +12,7 @@ import { AppModule } from '../src/app.module';
 describe('Admin Actions (e2e)', () => {
   let app: INestApplication<App>;
   let db: ReturnType<typeof Knex>;
-  let authToken: string;
+  let authCookie: string[];
 
   const connectionBase = {
     host: process.env.POSTGRES_HOST || 'localhost',
@@ -73,14 +74,16 @@ describe('Admin Actions (e2e)', () => {
 
     app = moduleFixture.createNestApplication();
     app.use(helmet());
-    app.enableCors({ origin: ['http://localhost:3000'] });
+    app.use(cookieParser());
+    app.enableCors({ origin: ['http://localhost:3000'], credentials: true });
     app.setGlobalPrefix('api');
     await app.init();
 
     const loginRes = await request(app.getHttpServer())
       .post('/api/auth/login')
       .send(adminCredentials);
-    authToken = loginRes.body.access_token as string;
+    const cookies = loginRes.headers['set-cookie'];
+    authCookie = Array.isArray(cookies) ? cookies : [cookies];
   }, 30_000);
 
   afterAll(async () => {
@@ -108,7 +111,7 @@ describe('Admin Actions (e2e)', () => {
       // Act
       const response = await request(app.getHttpServer())
         .patch(`/api/appointments/${created.body.id}`)
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('Cookie', authCookie)
         .send({ status: 'confirmed' });
 
       // Assert
@@ -125,7 +128,7 @@ describe('Admin Actions (e2e)', () => {
       // Act
       await request(app.getHttpServer())
         .patch(`/api/appointments/${created.body.id}`)
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('Cookie', authCookie)
         .send({ status: 'confirmed' });
 
       // Allow async event listener to write the audit record
@@ -134,7 +137,7 @@ describe('Admin Actions (e2e)', () => {
       // Assert
       const auditRes = await request(app.getHttpServer())
         .get(`/api/appointments/${created.body.id}/audit`)
-        .set('Authorization', `Bearer ${authToken}`);
+        .set('Cookie', authCookie);
 
       expect(auditRes.status).toBe(200);
       const approvalEntry = auditRes.body.find(
@@ -157,7 +160,7 @@ describe('Admin Actions (e2e)', () => {
       // Act
       const response = await request(app.getHttpServer())
         .patch(`/api/appointments/${created.body.id}`)
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('Cookie', authCookie)
         .send({
           name: 'Updated Name',
           description: 'Updated reason',
@@ -179,7 +182,7 @@ describe('Admin Actions (e2e)', () => {
       // Act
       await request(app.getHttpServer())
         .patch(`/api/appointments/${created.body.id}`)
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('Cookie', authCookie)
         .send({ name: 'Updated Name' });
 
       await new Promise((r) => setTimeout(r, 100));
@@ -187,7 +190,7 @@ describe('Admin Actions (e2e)', () => {
       // Assert
       const auditRes = await request(app.getHttpServer())
         .get(`/api/appointments/${created.body.id}/audit`)
-        .set('Authorization', `Bearer ${authToken}`);
+        .set('Cookie', authCookie);
 
       const editEntry = auditRes.body.find(
         (e: { action: string }) => e.action === 'updated',
@@ -206,7 +209,7 @@ describe('Admin Actions (e2e)', () => {
       // Act
       await request(app.getHttpServer())
         .patch(`/api/appointments/${created.body.id}`)
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('Cookie', authCookie)
         .send({ name: 'Updated Name' });
 
       await new Promise((r) => setTimeout(r, 100));
@@ -214,7 +217,7 @@ describe('Admin Actions (e2e)', () => {
       // Assert
       const auditRes = await request(app.getHttpServer())
         .get(`/api/appointments/${created.body.id}/audit`)
-        .set('Authorization', `Bearer ${authToken}`);
+        .set('Cookie', authCookie);
 
       const editEntry = auditRes.body.find(
         (e: { action: string }) => e.action === 'updated',
@@ -236,14 +239,14 @@ describe('Admin Actions (e2e)', () => {
       // Act
       const response = await request(app.getHttpServer())
         .delete(`/api/appointments/${created.body.id}`)
-        .set('Authorization', `Bearer ${authToken}`);
+        .set('Cookie', authCookie);
 
       // Assert
       expect(response.status).toBe(204);
 
       const getRes = await request(app.getHttpServer())
         .get(`/api/appointments/${created.body.id}`)
-        .set('Authorization', `Bearer ${authToken}`);
+        .set('Cookie', authCookie);
       expect(getRes.status).toBe(404);
     });
 
@@ -256,7 +259,7 @@ describe('Admin Actions (e2e)', () => {
       // Act
       await request(app.getHttpServer())
         .delete(`/api/appointments/${created.body.id}`)
-        .set('Authorization', `Bearer ${authToken}`);
+        .set('Cookie', authCookie);
 
       // Assert — audit log stored even though appointment is gone
       const rows = await db('audit_log')
@@ -278,12 +281,12 @@ describe('Admin Actions (e2e)', () => {
 
       await request(app.getHttpServer())
         .patch(`/api/appointments/${created.body.id}`)
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('Cookie', authCookie)
         .send({ status: 'confirmed' });
 
       await request(app.getHttpServer())
         .patch(`/api/appointments/${created.body.id}`)
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('Cookie', authCookie)
         .send({ name: 'Edited Name' });
 
       await new Promise((r) => setTimeout(r, 100));
@@ -291,7 +294,7 @@ describe('Admin Actions (e2e)', () => {
       // Act
       const auditRes = await request(app.getHttpServer())
         .get(`/api/appointments/${created.body.id}/audit`)
-        .set('Authorization', `Bearer ${authToken}`);
+        .set('Cookie', authCookie);
 
       // Assert — should have created + approved + updated entries
       expect(auditRes.status).toBe(200);
