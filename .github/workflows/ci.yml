@@ -10,6 +10,26 @@ jobs:
   backend:
     name: Backend - Lint, Test & Audit
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      POSTGRES_HOST: localhost
+      POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+      ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
     defaults:
       run:
         working-directory: backend
@@ -22,6 +42,7 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - run: npm install
       - run: npm run lint
+      - run: npx tsc --noEmit
       - run: npm test
       - run: npm audit --audit-level=high --omit=dev
 

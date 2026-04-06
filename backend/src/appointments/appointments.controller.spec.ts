@@ -75,8 +75,8 @@ describe('AppointmentsController', () => {
   }, 30_000);
 
   afterAll(async () => {
-    await app.close();
-    await db.destroy();
+    await app?.close();
+    await db?.destroy();
   });
 
   beforeEach(async () => {

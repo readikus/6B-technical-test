@@ -67,8 +67,8 @@ describe('Appointments API (e2e)', () => {
   }, 30_000);
 
   afterAll(async () => {
-    await app.close();
-    await db.destroy();
+    await app?.close();
+    await db?.destroy();
   });
 
   beforeEach(async () => {
