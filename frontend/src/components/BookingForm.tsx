@@ -2,6 +2,7 @@
 
 import { useState, type ChangeEvent, type FormEvent, type ReactElement, cloneElement } from 'react';
 import { validateBookingForm, type BookingFormData, type ValidationErrors } from '../lib/validation';
+import DatePickerDialog from './DatePickerDialog';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
@@ -140,16 +141,23 @@ export default function BookingForm() {
         />
       </Field>
 
-      <Field label="Appointment Date & Time" name="appointmentDate" error={errors.appointmentDate} required>
-        <input
-          id="appointmentDate"
-          name="appointmentDate"
-          type="datetime-local"
-          value={formData.appointmentDate}
-          onChange={handleChange}
-          className={inputClasses(errors.appointmentDate)}
-        />
-      </Field>
+      <DatePickerDialog
+        label="Appointment Date & Time"
+        name="appointmentDate"
+        value={formData.appointmentDate}
+        onChange={(val) => {
+          setFormData((prev) => ({ ...prev, appointmentDate: val }));
+          if (errors.appointmentDate) {
+            setErrors((prev) => {
+              const next = { ...prev };
+              delete next.appointmentDate;
+              return next;
+            });
+          }
+        }}
+        error={errors.appointmentDate}
+        required
+      />
 
       <Field label="Description" name="description" error={errors.description} required>
         <textarea

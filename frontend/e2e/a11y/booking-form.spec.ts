@@ -117,21 +117,23 @@ test.describe('Booking form — WCAG 2.2 Level A & AA', () => {
       expect(id, `Expected focus on #${fieldId}`).toBe(fieldId);
     }
 
-    // datetime-local has internal tab stops (date/time segments in shadow DOM).
-    // Verify the input receives focus, then use Escape to exit and Tab to next field.
+    // Date input (read-only) then date picker trigger button
     await page.keyboard.press('Tab');
-    const dateInput = page.locator('#appointmentDate');
-    await expect(dateInput).toBeFocused();
+    await expect(page.locator('#appointmentDate')).toBeFocused();
 
-    // Skip past the datetime-local by focusing the next field directly,
-    // since browser-internal tab stops vary across platforms.
-    await page.locator('#description').focus();
+    await page.keyboard.press('Tab');
+    const triggerFocused = page.locator(':focus');
+    await expect(triggerFocused).toHaveRole('button');
+
+    // Description textarea
+    await page.keyboard.press('Tab');
     await expect(page.locator('#description')).toBeFocused();
 
-    // One more Tab should reach the submit button
+    // Submit button
     await page.keyboard.press('Tab');
     const submitFocused = page.locator(':focus');
     await expect(submitFocused).toHaveRole('button');
+    await expect(submitFocused).toContainText('Book Appointment');
   });
 
   test('form can be submitted via Enter key', async ({ page }) => {
@@ -205,9 +207,10 @@ test.describe('Booking form — WCAG 2.2 Level A & AA', () => {
       // Error text should be visible
       await expect(page.getByText(error)).toBeVisible();
 
-      // Error should be within the same field group as the input
-      const fieldGroup = page.locator(`#${field}`).locator('..');
-      await expect(fieldGroup.getByText(error)).toBeVisible();
+      // Error should be linked via aria-describedby
+      const describedBy = await page.locator(`#${field}`).getAttribute('aria-describedby');
+      expect(describedBy, `#${field} should have aria-describedby`).toBeTruthy();
+      await expect(page.locator(`#${describedBy}`)).toContainText(error);
     }
   });
 
@@ -249,19 +252,96 @@ test.describe('Booking form — WCAG 2.2 Level A & AA', () => {
     }
   });
 
-  // ── Datetime-local accessibility ──────────────────────────
+  // ── ARIA DatePicker Dialog (WAI-APG pattern) ───────────────
 
-  test('datetime-local input is keyboard accessible', async ({ page }) => {
+  test('date picker dialog has correct ARIA attributes', async ({ page }) => {
+    // Arrange — open the date picker
+    await page.getByRole('button', { name: /choose date/i }).click();
+
+    // Act
+    const dialog = page.getByRole('dialog');
+
+    // Assert
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toHaveAttribute('aria-modal', 'true');
+    await expect(dialog).toHaveAttribute('aria-label');
+  });
+
+  test('date picker grid has role="grid" with labelled month heading', async ({
+    page,
+  }) => {
     // Arrange
-    const dateInput = page.locator('#appointmentDate');
+    await page.getByRole('button', { name: /choose date/i }).click();
 
-    // Act — focus and interact
-    await dateInput.focus();
-    await expect(dateInput).toBeFocused();
+    // Act
+    const grid = page.getByRole('grid');
+    const labelledBy = await grid.getAttribute('aria-labelledby');
 
-    // Assert — has accessible label
-    const label = page.locator('label[for="appointmentDate"]');
-    await expect(label).toBeVisible();
-    await expect(label).toContainText('Appointment Date');
+    // Assert
+    expect(labelledBy).toBeTruthy();
+    const heading = page.locator(`#${labelledBy}`);
+    await expect(heading).toBeVisible();
+    await expect(heading).toHaveAttribute('aria-live', 'polite');
+  });
+
+  test('date picker has no axe-core violations', async ({ page }) => {
+    // Arrange — open the picker
+    await page.getByRole('button', { name: /choose date/i }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+
+    // Act
+    const violations = await runAxe(page);
+
+    // Assert
+    expect(violations, formatViolations(violations)).toHaveLength(0);
+  });
+
+  test('date picker closes on Escape and returns focus to trigger', async ({
+    page,
+  }) => {
+    // Arrange
+    const trigger = page.getByRole('button', { name: /choose date/i });
+    await trigger.click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+
+    // Act
+    await page.keyboard.press('Escape');
+
+    // Assert
+    await expect(page.getByRole('dialog')).not.toBeVisible();
+    await expect(trigger).toBeFocused();
+  });
+
+  test('date picker supports keyboard navigation (arrow keys)', async ({
+    page,
+  }) => {
+    // Arrange — open picker
+    await page.getByRole('button', { name: /choose date/i }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+
+    // Act — press ArrowRight to move to next day
+    const initialFocused = await page.evaluate(() => document.activeElement?.textContent);
+    await page.keyboard.press('ArrowRight');
+    const newFocused = await page.evaluate(() => document.activeElement?.textContent);
+
+    // Assert — focus should have moved to a different day
+    expect(newFocused).not.toBe(initialFocused);
+  });
+
+  test('selecting a date via Enter closes dialog and updates input', async ({
+    page,
+  }) => {
+    // Arrange
+    await page.getByRole('button', { name: /choose date/i }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+
+    // Act — press Enter to select the focused date
+    await page.keyboard.press('Enter');
+
+    // Assert — dialog closes, input has a value
+    await expect(page.getByRole('dialog')).not.toBeVisible();
+    const input = page.locator('#appointmentDate');
+    const val = await input.inputValue();
+    expect(val.length).toBeGreaterThan(0);
   });
 });
