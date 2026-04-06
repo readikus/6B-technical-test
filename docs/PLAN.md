@@ -23,10 +23,10 @@ Integration tests run against real PostgreSQL in Docker — no mocking the datab
 - [x] Architecture documentation
 
 ### Phase 1: Database Schema + Encryption
-- [ ] Knex config + 3 migrations (`admin_users`, `appointments`, `audit_log`)
-- [ ] AES-256-GCM encryption service (TDD)
-- [ ] Admin user seed (BCrypt hashed)
-- [ ] Docker entrypoint runs migrations + seed on startup
+- [x] Knex config + 3 migrations (`admin_users`, `appointments`, `audit_log`)
+- [x] AES-256-GCM encryption service (TDD)
+- [x] Admin user seed (BCrypt hashed)
+- [x] Docker entrypoint runs migrations + seed on startup
 
 ### Phase 2: Appointment API with Full Test Coverage
 - [ ] Knex database module for NestJS
