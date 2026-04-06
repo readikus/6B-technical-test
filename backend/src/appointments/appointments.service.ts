@@ -48,7 +48,14 @@ export class AppointmentsService {
     return this.decryptRow(row);
   }
 
-  async update(id: string, dto: UpdateAppointmentDto): Promise<AppointmentRow> {
+  async update(
+    id: string,
+    dto: UpdateAppointmentDto,
+    adminUserId?: string,
+  ): Promise<AppointmentRow> {
+    const existing = await this.repo.findById(id);
+    const decryptedExisting = this.decryptRow(existing);
+
     const data: Record<string, unknown> = { ...dto };
     for (const field of PII_FIELDS) {
       if (data[field] !== undefined) {
@@ -59,20 +66,35 @@ export class AppointmentsService {
     const row = await this.repo.update(id, data);
     const decrypted = this.decryptRow(row);
 
-    this.eventEmitter.emit(
-      APPOINTMENT_AUDIT,
-      new AppointmentEvent('updated', id, dto),
-    );
+    const changes: Record<string, { from: unknown; to: unknown }> = {};
+    for (const key of Object.keys(dto) as (keyof UpdateAppointmentDto)[]) {
+      const oldVal = decryptedExisting[key as keyof AppointmentRow];
+      const newVal = dto[key];
+      if (oldVal !== newVal) {
+        changes[key] = { from: oldVal, to: newVal };
+      }
+    }
+
+    if (Object.keys(changes).length > 0) {
+      const action =
+        dto.status && dto.status !== decryptedExisting.status
+          ? ('approved' as const)
+          : ('updated' as const);
+      this.eventEmitter.emit(
+        APPOINTMENT_AUDIT,
+        new AppointmentEvent(action, id, changes, adminUserId),
+      );
+    }
 
     return decrypted;
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string, adminUserId?: string): Promise<void> {
     await this.repo.remove(id);
 
     this.eventEmitter.emit(
       APPOINTMENT_AUDIT,
-      new AppointmentEvent('deleted', id, {}),
+      new AppointmentEvent('deleted', id, {}, adminUserId),
     );
   }
 

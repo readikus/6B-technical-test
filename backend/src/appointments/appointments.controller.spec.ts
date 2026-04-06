@@ -10,6 +10,8 @@ import { AppointmentsController } from './appointments.controller';
 import { AppointmentsService } from './appointments.service';
 import { AppointmentsRepository } from './appointments.repository';
 import { EncryptionService } from '../encryption/encryption.service';
+import { AuditService } from '../audit/audit.service';
+import { AuditRepository } from '../audit/audit.repository';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { KNEX_TOKEN } from '../database/database.module';
 
@@ -69,6 +71,8 @@ describe('AppointmentsController', () => {
       providers: [
         AppointmentsService,
         AppointmentsRepository,
+        AuditService,
+        AuditRepository,
         { provide: KNEX_TOKEN, useValue: db },
         {
           provide: EncryptionService,

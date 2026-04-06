@@ -83,6 +83,10 @@ describe('Auth API (e2e)', () => {
     await db?.destroy();
   });
 
+  beforeEach(async () => {
+    await db.raw('TRUNCATE TABLE appointments CASCADE');
+  });
+
   // ── POST /auth/login ────────────────────────────────────────────
 
   describe('POST /auth/login', () => {

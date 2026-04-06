@@ -1,6 +1,7 @@
 'use client';
 
-import { Check, Trash2 } from 'lucide-react';
+import Link from 'next/link';
+import { Check, Pencil, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ApiAppointment } from '@/lib/api';
 
@@ -49,10 +50,19 @@ export function AppointmentsTable({
                 'border-b transition-colors',
                 appt.status === 'confirmed'
                   ? 'bg-green-50'
-                  : 'hover:bg-gray-50',
+                  : appt.status === 'cancelled'
+                    ? 'bg-red-50'
+                    : 'hover:bg-gray-50',
               )}
             >
-              <td className="px-4 py-3 font-medium">{appt.name}</td>
+              <td className="px-4 py-3 font-medium">
+                <Link
+                  href={`/admin/appointments/${appt.id}`}
+                  className="hover:underline"
+                >
+                  {appt.name}
+                </Link>
+              </td>
               <td className="px-4 py-3">{formatDateTime(appt.date_time)}</td>
               <td className="max-w-xs truncate px-4 py-3">
                 {appt.description}
@@ -74,6 +84,13 @@ export function AppointmentsTable({
                   >
                     <Check className="h-4 w-4" aria-hidden="true" />
                   </button>
+                  <Link
+                    href={`/admin/appointments/${appt.id}/edit`}
+                    aria-label={`Edit appointment for ${appt.name}`}
+                    className="rounded p-1.5 text-gray-400 hover:bg-blue-50 hover:text-blue-600"
+                  >
+                    <Pencil className="h-4 w-4" aria-hidden="true" />
+                  </Link>
                   <button
                     onClick={() => {
                       if (

@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  Req,
   HttpCode,
   BadRequestException,
   UseGuards,
@@ -17,16 +18,22 @@ import {
   ApiParam,
   ApiBody,
 } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { AppointmentsService } from './appointments.service';
 import {
   createAppointmentSchema,
   updateAppointmentSchema,
 } from './appointments.validation';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { AuditService } from '../audit/audit.service';
 import { z } from 'zod';
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+interface AuthenticatedRequest extends Request {
+  user: { sub: string; email: string };
+}
 
 const appointmentExample = {
   id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
@@ -44,7 +51,10 @@ const appointmentExample = {
 @ApiTags('Appointments')
 @Controller('appointments')
 export class AppointmentsController {
-  constructor(private readonly service: AppointmentsService) {}
+  constructor(
+    private readonly service: AppointmentsService,
+    private readonly auditService: AuditService,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Create a new appointment' })
@@ -109,6 +119,16 @@ export class AppointmentsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get(':id/audit')
+  @ApiOperation({ summary: 'Get audit log for an appointment' })
+  @ApiParam({ name: 'id', format: 'uuid' })
+  @ApiResponse({ status: 200, description: 'Array of audit log entries' })
+  async getAuditLog(@Param('id') id: string) {
+    this.validateUuid(id);
+    return this.auditService.findByAppointmentId(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Patch(':id')
   @ApiOperation({ summary: 'Partially update an appointment' })
   @ApiParam({ name: 'id', format: 'uuid' })
@@ -140,10 +160,15 @@ export class AppointmentsController {
   })
   @ApiResponse({ status: 400, description: 'Validation failed' })
   @ApiResponse({ status: 404, description: 'Appointment not found' })
-  async update(@Param('id') id: string, @Body() body: unknown) {
+  async update(
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @Req() req: AuthenticatedRequest,
+  ) {
     this.validateUuid(id);
     const dto = this.validate(updateAppointmentSchema, body);
-    return this.service.update(id, dto);
+    const adminUserId = req.user?.sub;
+    return this.service.update(id, dto, adminUserId);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -153,9 +178,10 @@ export class AppointmentsController {
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiResponse({ status: 204, description: 'Appointment deleted' })
   @ApiResponse({ status: 404, description: 'Appointment not found' })
-  async remove(@Param('id') id: string) {
+  async remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     this.validateUuid(id);
-    return this.service.remove(id);
+    const adminUserId = req.user?.sub;
+    return this.service.remove(id, adminUserId);
   }
 
   private validate<T>(schema: z.ZodSchema<T>, data: unknown): T {

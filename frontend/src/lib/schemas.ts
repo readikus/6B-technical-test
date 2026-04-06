@@ -27,6 +27,22 @@ export const bookingSchema = z.object({
 
 export type BookingFormData = z.infer<typeof bookingSchema>;
 
+export const editBookingSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  email: z.string().min(1, 'Email is required').email('Enter a valid email address'),
+  phone: z
+    .string()
+    .min(1, 'Phone number is required')
+    .min(7, 'Phone number too short')
+    .regex(/^\+?[\d\s\-()]+$/, 'Enter a valid phone number'),
+  description: z.string().min(1, 'Description is required'),
+  date_time: z
+    .string()
+    .min(1, 'Date and time are required'),
+});
+
+export type EditBookingFormData = z.infer<typeof editBookingSchema>;
+
 export const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
   password: z.string().min(1, 'Password is required'),
