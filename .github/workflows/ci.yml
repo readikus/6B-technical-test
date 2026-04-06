@@ -20,7 +20,7 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: backend/package-lock.json
-      - run: npm ci
+      - run: npm install
       - run: npm run lint
       - run: npm test
       - run: npm audit --audit-level=high --omit=dev
@@ -38,7 +38,7 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - run: npm ci
+      - run: npm install
       - run: npm run lint
       - run: npm test
       - run: npm audit --audit-level=high --omit=dev

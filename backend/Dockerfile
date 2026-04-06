@@ -10,6 +10,7 @@ RUN npm install
 FROM base AS dev
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+ENTRYPOINT ["sh", "entrypoint.sh"]
 CMD ["npm", "run", "start:dev"]
 
 # Build
