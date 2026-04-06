@@ -1,0 +1,34 @@
+server:
+  port: ${PORT:3002}
+  servlet:
+    context-path: /api
+
+spring:
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:sixbee_health}?stringtype=unspecified
+    username: ${POSTGRES_USER:sixbee}
+    password: ${POSTGRES_PASSWORD:changeme}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:dev-jwt-secret}
+    expiration-ms: 28800000
+  encryption:
+    key: ${ENCRYPTION_KEY:changeme-32-byte-hex-key-here0000}
+  admin:
+    email: ${ADMIN_EMAIL:admin@sixbee.health}
+    password: ${ADMIN_PASSWORD:changeme}
+  cors:
+    origins: ${CORS_ORIGIN:http://localhost:3000}

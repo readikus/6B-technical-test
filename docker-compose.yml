@@ -42,6 +42,26 @@ services:
       db:
         condition: service_healthy
 
+  backend-spring:
+    build:
+      context: ./backend-spring
+    ports:
+      - "${SPRING_PORT:-3002}:${SPRING_PORT:-3002}"
+    environment:
+      PORT: ${SPRING_PORT:-3002}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-sixbee}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: ${POSTGRES_DB:-sixbee_health}
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-dev-encryption-key-32bytes00000}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@sixbee.health}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-changeme}
+    depends_on:
+      db:
+        condition: service_healthy
+
   frontend:
     build:
       context: ./frontend
