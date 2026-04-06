@@ -285,7 +285,7 @@ describe('AppointmentsService', () => {
       expect(emitted[0]).toMatchObject({
         action: 'updated',
         appointmentId: created.id,
-        changes: updateDto,
+        changes: { name: { from: 'Jane Smith', to: 'Updated Name' } },
       });
     });
 

@@ -22,9 +22,7 @@ export class JwtAuthGuard implements CanActivate {
     const token = authHeader.slice(7);
 
     try {
-      const payload: Record<string, unknown> = this.jwtService.verify(
-        token,
-      ) as Record<string, unknown>;
+      const payload: Record<string, unknown> = this.jwtService.verify(token);
       (request as Request & { user: Record<string, unknown> }).user = payload;
       return true;
     } catch {

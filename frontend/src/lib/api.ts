@@ -28,6 +28,15 @@ export interface ApiAppointment {
   updated_at: string;
 }
 
+export interface AuditLogEntry {
+  id: string;
+  appointment_id: string | null;
+  admin_user_id: string | null;
+  action: string;
+  changes: Record<string, unknown>;
+  created_at: string;
+}
+
 export async function createAppointment(data: BookingFormData) {
   const response = await fetch(`${API_URL}/api/appointments`, {
     method: 'POST',
@@ -85,6 +94,37 @@ export async function fetchAppointments(
   return res.json();
 }
 
+export async function getAppointment(
+  token: string,
+  id: string,
+): Promise<ApiAppointment> {
+  const res = await fetch(`${API_URL}/api/appointments/${id}`, {
+    headers: authHeaders(token),
+  });
+
+  if (res.status === 401) throw new Error('Unauthorized');
+  if (!res.ok) throw new Error('Failed to fetch appointment');
+
+  return res.json();
+}
+
+export async function updateAppointment(
+  token: string,
+  id: string,
+  data: Record<string, unknown>,
+): Promise<ApiAppointment> {
+  const res = await fetch(`${API_URL}/api/appointments/${id}`, {
+    method: 'PATCH',
+    headers: authHeaders(token),
+    body: JSON.stringify(data),
+  });
+
+  if (res.status === 401) throw new Error('Unauthorized');
+  if (!res.ok) throw new Error('Failed to update appointment');
+
+  return res.json();
+}
+
 export async function approveAppointment(
   token: string,
   id: string,
@@ -122,6 +162,21 @@ export async function deleteAppointment(
   if (!res.ok) {
     throw new Error('Failed to delete appointment');
   }
+}
+
+export async function getAuditLog(
+  token: string,
+  appointmentId: string,
+): Promise<AuditLogEntry[]> {
+  const res = await fetch(
+    `${API_URL}/api/appointments/${appointmentId}/audit`,
+    { headers: authHeaders(token) },
+  );
+
+  if (res.status === 401) throw new Error('Unauthorized');
+  if (!res.ok) throw new Error('Failed to fetch audit log');
+
+  return res.json();
 }
 
 export { parseError };

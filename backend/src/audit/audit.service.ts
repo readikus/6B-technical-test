@@ -24,9 +24,11 @@ export class AuditService {
     action: string,
     appointmentId: string,
     changes: Record<string, unknown>,
+    adminUserId?: string,
   ): Promise<void> {
     await this.repo.insert({
       appointment_id: action === 'deleted' ? null : appointmentId,
+      admin_user_id: adminUserId ?? null,
       action,
       changes: this.encryption.encrypt(JSON.stringify(changes)),
     });
