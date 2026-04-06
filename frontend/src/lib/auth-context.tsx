@@ -4,7 +4,7 @@ import {
   createContext,
   useContext,
   useState,
-  useEffect,
+  useSyncExternalStore,
   useCallback,
   type ReactNode,
 } from 'react';
@@ -23,18 +23,27 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 const TOKEN_KEY = 'admin_token';
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const router = useRouter();
+function subscribeToStorage(callback: () => void) {
+  window.addEventListener('storage', callback);
+  return () => window.removeEventListener('storage', callback);
+}
 
-  useEffect(() => {
-    const stored = localStorage.getItem(TOKEN_KEY);
-    if (stored) {
-      setToken(stored);
-    }
-    setIsLoading(false);
-  }, []);
+function getTokenSnapshot(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+function getServerSnapshot(): null {
+  return null;
+}
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const storedToken = useSyncExternalStore(
+    subscribeToStorage,
+    getTokenSnapshot,
+    getServerSnapshot,
+  );
+  const [token, setToken] = useState<string | null>(storedToken);
+  const router = useRouter();
 
   const login = useCallback(
     async (email: string, password: string) => {
@@ -52,12 +61,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push('/admin/login');
   }, [router]);
 
+  const isAuthenticated = !!(token || storedToken);
+  const currentToken = token || storedToken;
+
   return (
     <AuthContext.Provider
       value={{
-        token,
-        isAuthenticated: !!token,
-        isLoading,
+        token: currentToken,
+        isAuthenticated,
+        isLoading: false,
         login,
         logout,
       }}
