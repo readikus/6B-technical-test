@@ -79,6 +79,29 @@ cd backend && npm test
 cd frontend && npm test
 ```
 
+## Local CI with `act`
+
+Run the GitHub Actions workflow locally before pushing:
+
+```bash
+act --container-architecture linux/amd64                    # run all jobs
+act -j backend --container-architecture linux/amd64         # run just the backend job
+act -j frontend-unit --container-architecture linux/amd64   # run just the frontend job
+```
+
+> **Apple Silicon note:** The `--container-architecture linux/amd64` flag is required on M-series Macs. Without it, container jobs may fail silently or with architecture-related errors.
+
+### Regenerating lock files
+
+If `npm ci` fails in CI with "Missing: … from lock file" errors, the lock files need regenerating. This happens when dependencies are resolved on macOS and platform-specific transitive deps are omitted:
+
+```bash
+cd frontend && rm -rf node_modules package-lock.json && npm install
+cd ../backend && rm -rf node_modules package-lock.json && npm install
+```
+
+Then re-run `act` to verify before pushing.
+
 ## Project Structure
 
 ```
