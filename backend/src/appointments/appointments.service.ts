@@ -34,6 +34,7 @@ export class AppointmentsService {
       APPOINTMENT_AUDIT,
       new AppointmentEvent('created', row.id, dto),
     );
+    this.eventEmitter.emit('appointment.created', decrypted);
 
     return decrypted;
   }

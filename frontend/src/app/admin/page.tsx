@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { io } from 'socket.io-client';
 import { useAuth } from '@/lib/auth-context';
 import {
   fetchAppointments,
@@ -10,6 +11,8 @@ import {
   type ApiAppointment,
 } from '@/lib/api';
 import { AppointmentsTable } from '@/components/appointments-table';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 export default function AdminDashboardPage() {
   const { token, logout } = useAuth();
@@ -41,6 +44,24 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     loadAppointments();
   }, [loadAppointments]);
+
+  useEffect(() => {
+    const socket = io(API_URL, { transports: ['websocket'] });
+
+    socket.on('appointment.created', (appointment: ApiAppointment) => {
+      setAppointments((prev) => {
+        if (prev.some((a) => a.id === appointment.id)) return prev;
+        return [...prev, appointment].sort(
+          (a, b) =>
+            new Date(a.date_time).getTime() - new Date(b.date_time).getTime(),
+        );
+      });
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
 
   const handleApprove = async (id: string) => {
     if (!token) return;
