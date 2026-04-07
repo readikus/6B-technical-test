@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EncryptionService } from '../encryption/encryption.service';
 import { AuditRepository, AuditRow } from './audit.repository';
+import { AuditContext } from './audit.events';
 
 export interface DecryptedAuditRecord {
   id: string;
@@ -8,6 +9,8 @@ export interface DecryptedAuditRecord {
   admin_user_id: string | null;
   action: string;
   changes: Record<string, unknown>;
+  ip_address: string | null;
+  user_agent: string | null;
   created_at: string;
 }
 
@@ -24,13 +27,15 @@ export class AuditService {
     action: string,
     appointmentId: string,
     changes: Record<string, unknown>,
-    adminUserId?: string,
+    context: AuditContext = {},
   ): Promise<void> {
     await this.repo.insert({
       appointment_id: action === 'deleted' ? null : appointmentId,
-      admin_user_id: adminUserId ?? null,
+      admin_user_id: context.adminUserId ?? null,
       action,
       changes: this.encryption.encrypt(JSON.stringify(changes)),
+      ip_address: context.ipAddress ?? null,
+      user_agent: context.userAgent ?? null,
     });
   }
 

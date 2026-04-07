@@ -16,6 +16,9 @@ services:
       retries: 5
 
   backend:
+    # Activated by COMPOSE_PROFILES=nest (default in .env.example).
+    # Set COMPOSE_PROFILES=spring to swap in the Spring Boot backend.
+    profiles: [nest]
     build:
       context: ./backend
       target: dev
@@ -28,13 +31,50 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-sixbee}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
       POSTGRES_DB: ${POSTGRES_DB:-sixbee_health}
-      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-dev-encryption-key-32bytes00000}
+      # Required: must be set in .env (no insecure default)
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env (32+ bytes)}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY must be set in .env (64 hex chars)}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@sixbee.health}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-changeme}
+      # Default meets the seed's complexity requirement; override in .env
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Ch4ngeMe!Now123}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
     volumes:
       - ./backend:/app
       - /app/node_modules
+    depends_on:
+      db:
+        condition: service_healthy
+
+  backend-spring:
+    # Activated by COMPOSE_PROFILES=spring. Set both profiles
+    # (COMPOSE_PROFILES=nest,spring) to run NestJS and Spring side
+    # by side — useful for parity testing or load-balancer demos.
+    profiles: [spring]
+    build:
+      context: ./backend-spring
+    ports:
+      - "${SPRING_PORT:-3002}:${SPRING_PORT:-3002}"
+      # Socket.IO server (netty-socketio) runs on its own port
+      # because it cannot share Tomcat's listening socket. The
+      # frontend connects via NEXT_PUBLIC_WEBSOCKET_URL which
+      # defaults to NEXT_PUBLIC_API_URL but can be pointed at
+      # this port (3003) when running against Spring.
+      - "${SPRING_WEBSOCKET_PORT:-3003}:${SPRING_WEBSOCKET_PORT:-3003}"
+    environment:
+      PORT: ${SPRING_PORT:-3002}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-sixbee}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: ${POSTGRES_DB:-sixbee_health}
+      # Required: must be set in .env (no insecure default) — parity with backend service
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env (32+ bytes)}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY must be set in .env (64 hex chars)}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@sixbee.health}
+      # Default meets the seed's complexity requirement; override in .env
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Ch4ngeMe!Now123}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      APP_WEBSOCKET_PORT: ${SPRING_WEBSOCKET_PORT:-3003}
     depends_on:
       db:
         condition: service_healthy
@@ -46,12 +86,23 @@ services:
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:${BACKEND_PORT:-3001}
+      # Defaults to NestJS on BACKEND_PORT. Override in .env to
+      # point at the Spring Boot backend (e.g. http://localhost:3002)
+      # when running with COMPOSE_PROFILES=spring.
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:${BACKEND_PORT:-3001}}
+      # Socket.IO endpoint. NestJS serves Socket.IO from the same
+      # port as the HTTP API; Spring Boot serves it from a separate
+      # port (default 3003) because netty-socketio is its own
+      # server. Default falls back to NEXT_PUBLIC_API_URL so the
+      # NestJS path needs no override.
+      NEXT_PUBLIC_WEBSOCKET_URL: ${NEXT_PUBLIC_WEBSOCKET_URL:-${NEXT_PUBLIC_API_URL:-http://localhost:${BACKEND_PORT:-3001}}}
     volumes:
       - ./frontend:/app
       - /app/node_modules
-    depends_on:
-      - backend
+    # No depends_on for backends — the active backend is selected by
+    # COMPOSE_PROFILES, and a static depends_on cannot react to that.
+    # The Next.js dev server starts immediately; client-side fetches
+    # will start succeeding once whichever backend is active is up.
 
 volumes:
   pgdata:

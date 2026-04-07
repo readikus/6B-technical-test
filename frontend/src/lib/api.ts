@@ -2,12 +2,7 @@ import type { BookingFormData } from './schemas';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-function authHeaders(token: string): HeadersInit {
-  return {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${token}`,
-  };
-}
+const jsonHeaders: HeadersInit = { 'Content-Type': 'application/json' };
 
 function parseError(error: unknown): string {
   if (error instanceof Error) return error.message;
@@ -37,145 +32,209 @@ export interface AuditLogEntry {
   created_at: string;
 }
 
-export async function createAppointment(data: BookingFormData) {
-  const response = await fetch(`${API_URL}/api/appointments`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      ...data,
-      date_time: new Date(data.date_time).toISOString(),
-    }),
-  });
-
-  if (!response.ok) {
-    const body = await response.json().catch(() => null);
-    const msg = body?.message;
+/**
+ * Wraps fetch with friendly, clinic-grade error messages. Three
+ * failure modes are mapped to copy a non-technical user can act on:
+ *
+ *   - fetch() throws (network failure, CORS rejected, server down):
+ *     "Can't reach the booking system..."
+ *   - 401 Unauthorized: re-thrown as Error('Unauthorized') so the
+ *     auth context can detect it and redirect to /admin/login.
+ *     Do NOT change this string — it is a load-bearing sentinel.
+ *   - any other non-2xx: prefer the server's `message` field if it
+ *     looks user-safe, otherwise fall back to the {@code fallback}
+ *     parameter.
+ *
+ * Returns the raw Response so callers can decide whether to parse
+ * JSON, return void, etc.
+ */
+async function apiFetch(
+  path: string,
+  init: RequestInit | undefined,
+  fallback: string,
+): Promise<Response> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      credentials: 'include',
+      ...init,
+    });
+  } catch {
+    // fetch() throws TypeError on network or CORS failure. The
+    // browser surfaces this as the literal string "Failed to fetch",
+    // which is meaningless to a non-technical user.
     throw new Error(
-      Array.isArray(msg) ? msg.join('. ') : msg ?? 'Failed to book appointment',
+      "Can't reach the booking system. Please check your internet connection and try again.",
     );
   }
 
-  return response.json();
+  if (res.status === 401) {
+    // Sentinel — auth-context.tsx checks for this exact string.
+    throw new Error('Unauthorized');
+  }
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    const msg = data?.message;
+    throw new Error(
+      Array.isArray(msg)
+        ? msg.join('. ')
+        : (msg ?? fallback),
+    );
+  }
+
+  return res;
+}
+
+export async function createAppointment(data: BookingFormData) {
+  const res = await apiFetch(
+    '/api/appointments',
+    {
+      method: 'POST',
+      headers: jsonHeaders,
+      body: JSON.stringify({
+        ...data,
+        date_time: new Date(data.date_time).toISOString(),
+      }),
+    },
+    "We couldn't book your appointment. Please try again, or contact the clinic if the problem continues.",
+  );
+  return res.json();
 }
 
 export async function loginRequest(
   email: string,
   password: string,
-): Promise<{ access_token: string }> {
-  const res = await fetch(`${API_URL}/api/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-  });
-
-  if (!res.ok) {
-    const data = await res.json().catch(() => null);
-    throw new Error(data?.message || 'Login failed');
+): Promise<{ ok: boolean }> {
+  // Login intentionally does not use apiFetch: it needs custom
+  // copy for 401 ("incorrect credentials") and 429 ("too many
+  // attempts") that other endpoints don't.
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: jsonHeaders,
+      credentials: 'include',
+      body: JSON.stringify({ email, password }),
+    });
+  } catch {
+    throw new Error(
+      "Can't reach the booking system. Please check your internet connection and try again.",
+    );
   }
-
-  return res.json();
-}
-
-export async function fetchAppointments(
-  token: string,
-): Promise<ApiAppointment[]> {
-  const res = await fetch(`${API_URL}/api/appointments`, {
-    headers: authHeaders(token),
-  });
 
   if (res.status === 401) {
-    throw new Error('Unauthorized');
+    throw new Error('Email or password is incorrect. Please try again.');
   }
-
+  if (res.status === 429) {
+    throw new Error(
+      'Too many sign-in attempts. Please wait a minute and try again.',
+    );
+  }
   if (!res.ok) {
-    throw new Error('Failed to fetch appointments');
+    const data = await res.json().catch(() => null);
+    const msg = data?.message;
+    throw new Error(
+      Array.isArray(msg)
+        ? msg.join('. ')
+        : msg ??
+          "Something went wrong while signing in. Please try again, or contact support if the problem continues.",
+    );
   }
 
   return res.json();
 }
 
-export async function getAppointment(
-  token: string,
-  id: string,
-): Promise<ApiAppointment> {
-  const res = await fetch(`${API_URL}/api/appointments/${id}`, {
-    headers: authHeaders(token),
-  });
+export async function logoutRequest(): Promise<void> {
+  // Best-effort: a failed logout shouldn't block the user from
+  // being signed out client-side. Swallow errors silently.
+  try {
+    await fetch(`${API_URL}/api/auth/logout`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+  } catch {
+    // intentional no-op
+  }
+}
 
-  if (res.status === 401) throw new Error('Unauthorized');
-  if (!res.ok) throw new Error('Failed to fetch appointment');
+export async function fetchCurrentAdmin(): Promise<{
+  id: string;
+  email: string;
+}> {
+  const res = await apiFetch(
+    '/api/auth/me',
+    undefined,
+    "We couldn't load your account. Please try signing in again.",
+  );
+  return res.json();
+}
 
+export async function fetchAppointments(): Promise<ApiAppointment[]> {
+  const res = await apiFetch(
+    '/api/appointments',
+    undefined,
+    "We couldn't load the appointment list. Please refresh the page, or contact support if the problem continues.",
+  );
+  return res.json();
+}
+
+export async function getAppointment(id: string): Promise<ApiAppointment> {
+  const res = await apiFetch(
+    `/api/appointments/${id}`,
+    undefined,
+    "We couldn't load this appointment. Please refresh the page, or contact support if the problem continues.",
+  );
   return res.json();
 }
 
 export async function updateAppointment(
-  token: string,
   id: string,
   data: Record<string, unknown>,
 ): Promise<ApiAppointment> {
-  const res = await fetch(`${API_URL}/api/appointments/${id}`, {
-    method: 'PATCH',
-    headers: authHeaders(token),
-    body: JSON.stringify(data),
-  });
-
-  if (res.status === 401) throw new Error('Unauthorized');
-  if (!res.ok) throw new Error('Failed to update appointment');
-
+  const res = await apiFetch(
+    `/api/appointments/${id}`,
+    {
+      method: 'PATCH',
+      headers: jsonHeaders,
+      body: JSON.stringify(data),
+    },
+    "We couldn't save your changes. Please try again, or contact support if the problem continues.",
+  );
   return res.json();
 }
 
 export async function approveAppointment(
-  token: string,
   id: string,
 ): Promise<ApiAppointment> {
-  const res = await fetch(`${API_URL}/api/appointments/${id}`, {
-    method: 'PATCH',
-    headers: authHeaders(token),
-    body: JSON.stringify({ status: 'confirmed' }),
-  });
-
-  if (res.status === 401) {
-    throw new Error('Unauthorized');
-  }
-
-  if (!res.ok) {
-    throw new Error('Failed to approve appointment');
-  }
-
+  const res = await apiFetch(
+    `/api/appointments/${id}`,
+    {
+      method: 'PATCH',
+      headers: jsonHeaders,
+      body: JSON.stringify({ status: 'confirmed' }),
+    },
+    "We couldn't approve this appointment. Please try again, or contact support if the problem continues.",
+  );
   return res.json();
 }
 
-export async function deleteAppointment(
-  token: string,
-  id: string,
-): Promise<void> {
-  const res = await fetch(`${API_URL}/api/appointments/${id}`, {
-    method: 'DELETE',
-    headers: authHeaders(token),
-  });
-
-  if (res.status === 401) {
-    throw new Error('Unauthorized');
-  }
-
-  if (!res.ok) {
-    throw new Error('Failed to delete appointment');
-  }
+export async function deleteAppointment(id: string): Promise<void> {
+  await apiFetch(
+    `/api/appointments/${id}`,
+    { method: 'DELETE' },
+    "We couldn't delete this appointment. Please try again, or contact support if the problem continues.",
+  );
 }
 
 export async function getAuditLog(
-  token: string,
   appointmentId: string,
 ): Promise<AuditLogEntry[]> {
-  const res = await fetch(
-    `${API_URL}/api/appointments/${appointmentId}/audit`,
-    { headers: authHeaders(token) },
+  const res = await apiFetch(
+    `/api/appointments/${appointmentId}/audit`,
+    undefined,
+    "We couldn't load the change history for this appointment. Please refresh the page, or contact support if the problem continues.",
   );
-
-  if (res.status === 401) throw new Error('Unauthorized');
-  if (!res.ok) throw new Error('Failed to fetch audit log');
-
   return res.json();
 }
 

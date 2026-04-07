@@ -4,6 +4,7 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import Knex from 'knex';
 import bcrypt from 'bcrypt';
+import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import * as path from 'path';
 import { AppModule } from '../src/app.module';
@@ -29,7 +30,10 @@ describe('Auth API (e2e)', () => {
   beforeAll(async () => {
     process.env.ENCRYPTION_KEY = 'a'.repeat(64);
     process.env.POSTGRES_DB = testDb;
-    process.env.JWT_SECRET = 'test-jwt-secret';
+    process.env.JWT_SECRET = 'test-jwt-secret-must-be-at-least-32-bytes-long';
+    process.env.LOGIN_THROTTLE_LIMIT = '10000';
+    process.env.COOKIE_SECURE = 'false';
+    process.env.THROTTLE_LIMIT = '10000';
 
     // Create test database if it doesn't exist
     const adminDb = Knex({
@@ -71,7 +75,8 @@ describe('Auth API (e2e)', () => {
 
     app = moduleFixture.createNestApplication();
     app.use(helmet());
-    app.enableCors({ origin: ['http://localhost:3000'] });
+    app.use(cookieParser());
+    app.enableCors({ origin: ['http://localhost:3000'], credentials: true });
     await app.init();
   }, 30_000);
 
@@ -90,7 +95,7 @@ describe('Auth API (e2e)', () => {
   // ── POST /auth/login ────────────────────────────────────────────
 
   describe('POST /auth/login', () => {
-    it('returns access_token with valid credentials', async () => {
+    it('sets an httpOnly auth cookie on successful login', async () => {
       // Arrange
       const payload = adminCredentials;
 
@@ -101,8 +106,13 @@ describe('Auth API (e2e)', () => {
 
       // Assert
       expect(response.status).toBe(200);
-      expect(response.body.access_token).toBeDefined();
-      expect(typeof response.body.access_token).toBe('string');
+      expect(response.body.ok).toBe(true);
+      const cookies = response.headers['set-cookie'];
+      expect(cookies).toBeDefined();
+      const cookieStr = Array.isArray(cookies) ? cookies.join(';') : cookies;
+      expect(cookieStr).toContain('admin_token=');
+      expect(cookieStr).toContain('HttpOnly');
+      expect(cookieStr).toContain('SameSite=Strict');
     });
 
     it('returns 401 with wrong password', async () => {
@@ -131,7 +141,7 @@ describe('Auth API (e2e)', () => {
       expect(response.status).toBe(401);
     });
 
-    it('returns validation error for missing email', async () => {
+    it('returns 400 validation error for missing email', async () => {
       // Arrange
       const payload = { password: 'something' };
 
@@ -141,7 +151,7 @@ describe('Auth API (e2e)', () => {
         .send(payload);
 
       // Assert
-      expect(response.status).toBe(200); // Controller returns 200 with error body
+      expect(response.status).toBe(400);
       expect(response.body.message).toBe('Validation failed');
     });
 
@@ -158,17 +168,23 @@ describe('Auth API (e2e)', () => {
       expect(response.body.message).toBe('Validation failed');
     });
 
-    it('token grants access to protected endpoints', async () => {
+    it('cookie grants access to protected endpoints', async () => {
       // Arrange
       const loginResponse = await request(app.getHttpServer())
         .post('/auth/login')
         .send(adminCredentials);
-      const token = loginResponse.body.access_token;
+      const rawCookies = loginResponse.headers['set-cookie'];
+      const cookieArr: string[] = Array.isArray(rawCookies)
+        ? rawCookies
+        : [rawCookies];
+      const cookieHeader = cookieArr
+        .map((c: string) => c.split(';')[0])
+        .join('; ');
 
       // Act
       const response = await request(app.getHttpServer())
         .get('/appointments')
-        .set('Authorization', `Bearer ${token}`);
+        .set('Cookie', cookieHeader);
 
       // Assert
       expect(response.status).toBe(200);

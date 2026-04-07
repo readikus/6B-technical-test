@@ -5,6 +5,7 @@ import { io } from 'socket.io-client';
 import { useAuth } from '@/lib/auth-context';
 import {
   fetchAppointments,
+  getAppointment,
   approveAppointment,
   deleteAppointment,
   parseError,
@@ -14,16 +15,24 @@ import { AppointmentsTable } from '@/components/appointments-table';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
+// Socket.IO endpoint. Defaults to API_URL because NestJS serves
+// Socket.IO from the same port as its HTTP API. The Spring Boot
+// backend serves it from a dedicated port (default 3003) because
+// netty-socketio is its own netty server and cannot share Tomcat's
+// listening socket — set NEXT_PUBLIC_WEBSOCKET_URL=http://localhost:3003
+// in .env when running against Spring.
+const WEBSOCKET_URL =
+  process.env.NEXT_PUBLIC_WEBSOCKET_URL || API_URL;
+
 export default function AdminDashboardPage() {
-  const { token, logout } = useAuth();
+  const { logout } = useAuth();
   const [appointments, setAppointments] = useState<ApiAppointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const loadAppointments = useCallback(async () => {
-    if (!token) return;
     try {
-      const data = await fetchAppointments(token);
+      const data = await fetchAppointments();
       const sorted = data.sort(
         (a, b) =>
           new Date(a.date_time).getTime() - new Date(b.date_time).getTime(),
@@ -32,30 +41,42 @@ export default function AdminDashboardPage() {
       setError(null);
     } catch (err) {
       if (parseError(err) === 'Unauthorized') {
-        logout();
+        await logout();
         return;
       }
       setError(parseError(err));
     } finally {
       setLoading(false);
     }
-  }, [token, logout]);
+  }, [logout]);
 
   useEffect(() => {
     loadAppointments();
   }, [loadAppointments]);
 
   useEffect(() => {
-    const socket = io(API_URL, { transports: ['websocket'] });
+    // The cookie auth is sent automatically because withCredentials is true
+    const socket = io(WEBSOCKET_URL, {
+      transports: ['websocket'],
+      withCredentials: true,
+    });
 
-    socket.on('appointment.created', (appointment: ApiAppointment) => {
-      setAppointments((prev) => {
-        if (prev.some((a) => a.id === appointment.id)) return prev;
-        return [...prev, appointment].sort(
-          (a, b) =>
-            new Date(a.date_time).getTime() - new Date(b.date_time).getTime(),
-        );
-      });
+    socket.on('appointment.created', async ({ id }: { id: string }) => {
+      // The broadcast contains only the ID (no PII over the WebSocket).
+      // Re-fetch the full appointment via the authenticated REST endpoint.
+      try {
+        const appointment = await getAppointment(id);
+        setAppointments((prev) => {
+          if (prev.some((a) => a.id === appointment.id)) return prev;
+          return [...prev, appointment].sort(
+            (a, b) =>
+              new Date(a.date_time).getTime() -
+              new Date(b.date_time).getTime(),
+          );
+        });
+      } catch {
+        // If the fetch fails, silently ignore — the next refresh will catch it
+      }
     });
 
     return () => {
@@ -64,15 +85,14 @@ export default function AdminDashboardPage() {
   }, []);
 
   const handleApprove = async (id: string) => {
-    if (!token) return;
     try {
-      const updated = await approveAppointment(token, id);
+      const updated = await approveAppointment(id);
       setAppointments((prev) =>
         prev.map((a) => (a.id === id ? updated : a)),
       );
     } catch (err) {
       if (parseError(err) === 'Unauthorized') {
-        logout();
+        await logout();
         return;
       }
       setError(parseError(err));
@@ -80,13 +100,12 @@ export default function AdminDashboardPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!token) return;
     try {
-      await deleteAppointment(token, id);
+      await deleteAppointment(id);
       setAppointments((prev) => prev.filter((a) => a.id !== id));
     } catch (err) {
       if (parseError(err) === 'Unauthorized') {
-        logout();
+        await logout();
         return;
       }
       setError(parseError(err));
