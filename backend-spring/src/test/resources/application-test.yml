@@ -28,3 +28,12 @@ app:
     password: T3st!Password123
   cors:
     origins: http://localhost:3000
+  # Effectively disable rate limiting for most integration tests so
+  # they don't trip the per-IP limit after a handful of logins.
+  # The dedicated RateLimitIntegrationTest overrides these with
+  # @TestPropertySource to exercise the real limits.
+  throttle:
+    login-limit: 10000
+    global-limit: 10000
+    login-window-ms: 60000
+    global-window-ms: 60000

@@ -2,6 +2,7 @@ package dev.sixbee.healthtech.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.sixbee.healthtech.security.JwtAuthenticationFilter;
+import dev.sixbee.healthtech.security.RateLimitFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
@@ -26,11 +27,16 @@ import java.util.Map;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtFilter;
+    private final RateLimitFilter rateLimitFilter;
     private final ObjectMapper objectMapper;
     private final CorsConfigurationSource corsConfigurationSource;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtFilter, ObjectMapper objectMapper, CorsConfigurationSource corsConfigurationSource) {
+    public SecurityConfig(JwtAuthenticationFilter jwtFilter,
+                          RateLimitFilter rateLimitFilter,
+                          ObjectMapper objectMapper,
+                          CorsConfigurationSource corsConfigurationSource) {
         this.jwtFilter = jwtFilter;
+        this.rateLimitFilter = rateLimitFilter;
         this.objectMapper = objectMapper;
         this.corsConfigurationSource = corsConfigurationSource;
     }
@@ -76,7 +82,13 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(nestjsStyleEntryPoint()))
-                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+                // Order matters: RateLimit runs BEFORE Jwt so a
+                // brute-force attacker cannot stay under the global
+                // limit by flooding the login endpoint. The login
+                // bucket is triggered by the URL check inside
+                // RateLimitFilter, regardless of auth state.
+                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(rateLimitFilter, JwtAuthenticationFilter.class);
 
         return http.build();
     }
