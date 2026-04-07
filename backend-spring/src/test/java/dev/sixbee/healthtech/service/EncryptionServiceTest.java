@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class EncryptionServiceTest {
 
@@ -68,5 +69,60 @@ class EncryptionServiceTest {
         decoded[decoded.length - 1] ^= 0xFF;
         String tampered = Base64.getEncoder().encodeToString(decoded);
         assertThrows(RuntimeException.class, () -> service.decrypt(tampered));
+    }
+
+    // ── ENCRYPTION_KEY validation ────────────────────────────────────
+
+    @Test
+    void constructorThrowsWhenKeyIsNull() {
+        IllegalStateException ex = assertThrows(
+                IllegalStateException.class,
+                () -> new EncryptionService(null));
+        assertTrue(ex.getMessage().contains("required"));
+    }
+
+    @Test
+    void constructorThrowsWhenKeyIsEmpty() {
+        IllegalStateException ex = assertThrows(
+                IllegalStateException.class,
+                () -> new EncryptionService(""));
+        assertTrue(ex.getMessage().contains("required"));
+    }
+
+    @Test
+    void constructorThrowsWhenKeyLengthIsWrong() {
+        // 62 hex chars (should be 64)
+        String shortKey = "a".repeat(62);
+        IllegalStateException ex = assertThrows(
+                IllegalStateException.class,
+                () -> new EncryptionService(shortKey));
+        assertTrue(ex.getMessage().contains("64 hex characters"));
+    }
+
+    @Test
+    void constructorThrowsWhenKeyContainsNonHexCharacters() {
+        // 64 chars but with a 'z' — reproduces the historical bug where
+        // 'changeme-32-byte-hex-key-here0000' was silently accepted and
+        // Buffer.from(..., 'hex') produced a truncated key.
+        String badKey = "z".repeat(64);
+        IllegalStateException ex = assertThrows(
+                IllegalStateException.class,
+                () -> new EncryptionService(badKey));
+        assertTrue(ex.getMessage().contains("hexadecimal"));
+    }
+
+    @Test
+    void constructorAcceptsAllZeroHexKey() {
+        // Valid hex — encrypts and decrypts correctly.
+        String zeroKey = "0".repeat(64);
+        EncryptionService svc = new EncryptionService(zeroKey);
+        assertEquals("hello", svc.decrypt(svc.encrypt("hello")));
+    }
+
+    @Test
+    void constructorAcceptsUppercaseHex() {
+        String upperKey = "ABCDEF1234567890".repeat(4);
+        EncryptionService svc = new EncryptionService(upperKey);
+        assertEquals("hello", svc.decrypt(svc.encrypt("hello")));
     }
 }

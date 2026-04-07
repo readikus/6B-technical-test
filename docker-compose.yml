@@ -54,10 +54,13 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-sixbee}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
       POSTGRES_DB: ${POSTGRES_DB:-sixbee_health}
-      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-dev-encryption-key-32bytes00000}
+      # Required: must be set in .env (no insecure default) — parity with backend service
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env (32+ bytes)}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY must be set in .env (64 hex chars)}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@sixbee.health}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-changeme}
+      # Default meets the seed's complexity requirement; override in .env
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Ch4ngeMe!Now123}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
     depends_on:
       db:
         condition: service_healthy

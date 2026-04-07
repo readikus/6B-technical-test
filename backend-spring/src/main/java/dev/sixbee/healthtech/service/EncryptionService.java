@@ -17,11 +17,39 @@ public class EncryptionService {
     private static final int AUTH_TAG_BITS = 128;
     private static final int AUTH_TAG_BYTES = 16;
 
+    /** AES-256 requires exactly 32 bytes of key material = 64 hex chars. */
+    private static final int REQUIRED_HEX_LENGTH = 64;
+
     private final SecretKeySpec keySpec;
 
-    public EncryptionService(@Value("${app.encryption.key}") String hexKey) {
+    public EncryptionService(@Value("${app.encryption.key:}") String hexKey) {
+        requireValidHexKey(hexKey);
         byte[] keyBytes = hexStringToBytes(hexKey);
         this.keySpec = new SecretKeySpec(keyBytes, "AES");
+    }
+
+    /**
+     * Fails fast at service instantiation if ENCRYPTION_KEY is missing
+     * or not a valid 64-character hex string. Mirrors the hardening
+     * applied to the NestJS backend after a misleading placeholder in
+     * .env.example caused silent Buffer.from(..., 'hex') truncation
+     * that only surfaced as {@code Invalid key length} on the first
+     * record save.
+     */
+    private static void requireValidHexKey(String hexKey) {
+        if (hexKey == null || hexKey.isEmpty()) {
+            throw new IllegalStateException(
+                    "ENCRYPTION_KEY environment variable is required and must not be empty");
+        }
+        if (hexKey.length() != REQUIRED_HEX_LENGTH) {
+            throw new IllegalStateException(
+                    "ENCRYPTION_KEY must be exactly " + REQUIRED_HEX_LENGTH
+                            + " hex characters (32 bytes) — got " + hexKey.length());
+        }
+        if (!hexKey.matches("[0-9a-fA-F]+")) {
+            throw new IllegalStateException(
+                    "ENCRYPTION_KEY must contain only hexadecimal characters (0-9, a-f)");
+        }
     }
 
     /**

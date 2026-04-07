@@ -23,12 +23,25 @@ spring:
 
 app:
   jwt:
-    secret: ${JWT_SECRET:dev-jwt-secret}
+    # No default — JwtService validates at construction and throws if
+    # missing or < 32 bytes. Matches the NestJS backend which also
+    # fails fast at module instantiation.
+    secret: ${JWT_SECRET:}
     expiration-ms: 28800000
   encryption:
-    key: ${ENCRYPTION_KEY:changeme-32-byte-hex-key-here0000}
+    # No default — EncryptionService validates at construction and
+    # throws if missing or not a valid 64-char hex string.
+    key: ${ENCRYPTION_KEY:}
   admin:
     email: ${ADMIN_EMAIL:admin@sixbee.health}
-    password: ${ADMIN_PASSWORD:changeme}
+    # Default meets the seed's complexity requirement (12+ chars,
+    # upper/lower/digit/symbol). Override in .env.
+    password: ${ADMIN_PASSWORD:Ch4ngeMe!Now123}
+  cookie:
+    # Defaults to true. Set COOKIE_SECURE=false only for local HTTP
+    # dev. Production deployments must serve over HTTPS. NODE_ENV is
+    # deliberately not the deciding factor — that previously caused
+    # silent cookie downgrades when NODE_ENV was unset or mistyped.
+    secure: ${COOKIE_SECURE:true}
   cors:
     origins: ${CORS_ORIGIN:http://localhost:3000}
