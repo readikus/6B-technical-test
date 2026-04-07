@@ -30,7 +30,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-sixbee_health}
       # Required: must be set in .env (no insecure default)
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env (32+ bytes)}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-dev-encryption-key-32bytes00000}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY must be set in .env (64 hex chars)}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@sixbee.health}
       # Default meets the seed's complexity requirement; override in .env
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Ch4ngeMe!Now123}
