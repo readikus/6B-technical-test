@@ -30,7 +30,10 @@ describe('Auth API (e2e)', () => {
   beforeAll(async () => {
     process.env.ENCRYPTION_KEY = 'a'.repeat(64);
     process.env.POSTGRES_DB = testDb;
-    process.env.JWT_SECRET = 'test-jwt-secret';
+    process.env.JWT_SECRET = 'test-jwt-secret-must-be-at-least-32-bytes-long';
+    process.env.LOGIN_THROTTLE_LIMIT = '10000';
+    process.env.COOKIE_SECURE = 'false';
+    process.env.THROTTLE_LIMIT = '10000';
 
     // Create test database if it doesn't exist
     const adminDb = Knex({
@@ -138,7 +141,7 @@ describe('Auth API (e2e)', () => {
       expect(response.status).toBe(401);
     });
 
-    it('returns validation error for missing email', async () => {
+    it('returns 400 validation error for missing email', async () => {
       // Arrange
       const payload = { password: 'something' };
 
@@ -148,7 +151,7 @@ describe('Auth API (e2e)', () => {
         .send(payload);
 
       // Assert
-      expect(response.status).toBe(200); // Controller returns 200 with error body
+      expect(response.status).toBe(400);
       expect(response.body.message).toBe('Validation failed');
     });
 
@@ -170,8 +173,13 @@ describe('Auth API (e2e)', () => {
       const loginResponse = await request(app.getHttpServer())
         .post('/auth/login')
         .send(adminCredentials);
-      const cookies = loginResponse.headers['set-cookie'];
-      const cookieHeader = Array.isArray(cookies) ? cookies : [cookies];
+      const rawCookies = loginResponse.headers['set-cookie'];
+      const cookieArr: string[] = Array.isArray(rawCookies)
+        ? rawCookies
+        : [rawCookies];
+      const cookieHeader = cookieArr
+        .map((c: string) => c.split(';')[0])
+        .join('; ');
 
       // Act
       const response = await request(app.getHttpServer())

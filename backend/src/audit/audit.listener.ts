@@ -13,7 +13,7 @@ export class AuditListener {
       event.action,
       event.appointmentId,
       event.changes,
-      event.adminUserId,
+      event.context,
     );
   }
 }

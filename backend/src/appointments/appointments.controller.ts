@@ -35,6 +35,15 @@ interface AuthenticatedRequest extends Request {
   user: { sub: string; email: string };
 }
 
+function buildAuditContext(req: AuthenticatedRequest) {
+  const ua = req.headers['user-agent'];
+  return {
+    adminUserId: req.user?.sub,
+    ipAddress: req.ip,
+    userAgent: typeof ua === 'string' ? ua.slice(0, 512) : undefined,
+  };
+}
+
 const appointmentExample = {
   id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
   name: 'Jane Smith',
@@ -85,9 +94,13 @@ export class AppointmentsController {
     schema: { example: appointmentExample },
   })
   @ApiResponse({ status: 400, description: 'Validation failed' })
-  async create(@Body() body: unknown) {
+  async create(@Body() body: unknown, @Req() req: Request) {
     const dto = this.validate(createAppointmentSchema, body);
-    return this.service.create(dto);
+    const ua = req.headers['user-agent'];
+    return this.service.create(dto, {
+      ipAddress: req.ip,
+      userAgent: typeof ua === 'string' ? ua.slice(0, 512) : undefined,
+    });
   }
 
   @UseGuards(JwtAuthGuard)
@@ -167,8 +180,7 @@ export class AppointmentsController {
   ) {
     this.validateUuid(id);
     const dto = this.validate(updateAppointmentSchema, body);
-    const adminUserId = req.user?.sub;
-    return this.service.update(id, dto, adminUserId);
+    return this.service.update(id, dto, buildAuditContext(req));
   }
 
   @UseGuards(JwtAuthGuard)
@@ -180,8 +192,7 @@ export class AppointmentsController {
   @ApiResponse({ status: 404, description: 'Appointment not found' })
   async remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     this.validateUuid(id);
-    const adminUserId = req.user?.sub;
-    return this.service.remove(id, adminUserId);
+    return this.service.remove(id, buildAuditContext(req));
   }
 
   private validate<T>(schema: z.ZodSchema<T>, data: unknown): T {
