@@ -13,6 +13,9 @@ describe('Security middleware', () => {
     process.env.POSTGRES_DB = 'sixbee_health_test';
     process.env.POSTGRES_HOST = process.env.POSTGRES_HOST || 'localhost';
     process.env.JWT_SECRET = 'test-jwt-secret-must-be-at-least-32-bytes-long';
+    process.env.LOGIN_THROTTLE_LIMIT = '10000';
+    process.env.COOKIE_SECURE = 'false';
+    process.env.THROTTLE_LIMIT = '10000';
 
     const module: TestingModule = await Test.createTestingModule({
       imports: [AppModule],

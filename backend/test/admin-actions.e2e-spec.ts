@@ -40,6 +40,9 @@ describe('Admin Actions (e2e)', () => {
     process.env.ENCRYPTION_KEY = 'a'.repeat(64);
     process.env.POSTGRES_DB = testDb;
     process.env.JWT_SECRET = 'test-jwt-secret-must-be-at-least-32-bytes-long';
+    process.env.LOGIN_THROTTLE_LIMIT = '10000';
+    process.env.COOKIE_SECURE = 'false';
+    process.env.THROTTLE_LIMIT = '10000';
 
     const adminDb = Knex({
       client: 'pg',

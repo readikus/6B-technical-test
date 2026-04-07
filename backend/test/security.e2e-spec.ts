@@ -10,6 +10,7 @@ import * as path from 'path';
 import { io as ioClient, type Socket } from 'socket.io-client';
 import { JwtService } from '@nestjs/jwt';
 import { AppModule } from '../src/app.module';
+import { helmetConfig } from '../src/security-config';
 
 /**
  * SECURITY E2E TESTS
@@ -61,6 +62,14 @@ describe('Security (e2e)', () => {
     process.env.ENCRYPTION_KEY = 'a'.repeat(64);
     process.env.POSTGRES_DB = testDb;
     process.env.JWT_SECRET = 'test-jwt-secret-must-be-at-least-32-bytes-long';
+    // Use a higher login throttle than production (5/min) so that the
+    // many login calls across this test file don't all hit each other's
+    // rate limits. The H2 test deliberately fires more than the limit
+    // to verify that throttling kicks in.
+    process.env.LOGIN_THROTTLE_LIMIT = '500';
+    process.env.LOGIN_THROTTLE_TTL_MS = '60000';
+    process.env.THROTTLE_LIMIT = '10000';
+    process.env.COOKIE_SECURE = 'false';
 
     // Create test DB if needed
     const adminDb = Knex({
@@ -96,7 +105,7 @@ describe('Security (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    app.use(helmet());
+    app.use(helmet(helmetConfig));
     app.use(cookieParser());
     app.enableCors({ origin: ['http://localhost:3000'], credentials: true });
     app.setGlobalPrefix('api');
@@ -241,46 +250,22 @@ describe('Security (e2e)', () => {
   // [H2] No rate limiting on login endpoint
   // ────────────────────────────────────────────────────────────────────
 
-  describe('[H2] Login rate limiting', () => {
-    it('VULN: 50 rapid wrong-password attempts all return 401 (no throttling)', async () => {
-      // Arrange
-      const attempts = 50;
-      const responses: number[] = [];
-
-      // Act — fire all requests in parallel
-      await Promise.all(
-        Array.from({ length: attempts }, () =>
-          request(app.getHttpServer())
-            .post('/api/auth/login')
-            .send({
-              email: adminCredentials.email,
-              password: 'wrong-password',
-            })
-            .then((res) => responses.push(res.status)),
-        ),
-      );
-
-      // Assert — every attempt was processed (none rate-limited)
-      // A properly-throttled endpoint would return 429 for some.
-      expect(responses).toHaveLength(attempts);
-      expect(responses.every((s) => s === 401)).toBe(true);
-      expect(responses.some((s) => s === 429)).toBe(false);
-    }, 30_000);
-  });
+  // [H2] Login rate limiting moved to the end of the file so it doesn't
+  // exhaust the throttle window for the other tests in this suite.
 
   // ────────────────────────────────────────────────────────────────────
   // [M1] Login validation errors return HTTP 200
   // ────────────────────────────────────────────────────────────────────
 
   describe('[M1] Login validation HTTP status', () => {
-    it('VULN: invalid login body returns HTTP 200 instead of 400', async () => {
+    it('returns HTTP 400 for an invalid login body', async () => {
       // Arrange / Act
       const res = await request(app.getHttpServer())
         .post('/api/auth/login')
         .send({ password: 'no-email' });
 
-      // Assert — should be 400, currently 200
-      expect(res.status).toBe(200);
+      // Assert — proper HTTP status now
+      expect(res.status).toBe(400);
       expect(res.body.message).toBe('Validation failed');
     });
   });
@@ -289,14 +274,16 @@ describe('Security (e2e)', () => {
   // [M2] No password complexity at the login schema
   // ────────────────────────────────────────────────────────────────────
 
-  describe('[M2] Password schema accepts weak passwords', () => {
-    it('VULN: 1-character password passes the login schema validation', async () => {
-      // Arrange / Act — schema-level only; we expect 401 (wrong password) not 400 (invalid format)
+  describe('[M2] Password complexity enforcement', () => {
+    it('login schema accepts any password length (enforced at seed/admin-creation instead)', async () => {
+      // Arrange / Act — login schema must NOT enforce min length, otherwise
+      // existing users with weak passwords cannot log in to be migrated.
+      // Complexity is enforced at the seed level (see seeds/001_admin_user.ts).
       const res = await request(app.getHttpServer())
         .post('/api/auth/login')
         .send({ email: adminCredentials.email, password: 'a' });
 
-      // Assert — schema accepts it, so we get 401 not 400
+      // Assert — schema accepts it, hits the credential check (401)
       expect(res.status).toBe(401);
     });
   });
@@ -305,12 +292,22 @@ describe('Security (e2e)', () => {
   // [M3] Logout endpoint does not require authentication
   // ────────────────────────────────────────────────────────────────────
 
-  describe('[M3] Logout requires no auth', () => {
-    it('VULN: POST /auth/logout returns 200 without any auth cookie', async () => {
+  describe('[M3] Logout authentication', () => {
+    it('rejects POST /auth/logout without an auth cookie', async () => {
       // Arrange / Act
       const res = await request(app.getHttpServer()).post('/api/auth/logout');
 
-      // Assert — currently accepts unauthenticated calls
+      // Assert — guarded now
+      expect(res.status).toBe(401);
+    });
+
+    it('accepts POST /auth/logout with a valid auth cookie', async () => {
+      // Arrange / Act
+      const res = await request(app.getHttpServer())
+        .post('/api/auth/logout')
+        .set('Cookie', authCookie);
+
+      // Assert
       expect(res.status).toBe(200);
     });
   });
@@ -320,14 +317,16 @@ describe('Security (e2e)', () => {
   // ────────────────────────────────────────────────────────────────────
 
   describe('[M5] Content Security Policy', () => {
-    it('NOTE: Helmet default CSP is set, but it allows inline scripts/styles', async () => {
-      // Arrange / Act
-      const res = await request(app.getHttpServer()).get('/api');
-
-      // Assert — Helmet sets a default CSP. A stricter custom one would be better.
-      const csp = res.headers['content-security-policy'];
-      // Document current state: CSP is present (Helmet default)
+    it('sets a strict CSP — default-src none, frame-ancestors none', async () => {
+      // The test app doesn't mount Helmet by default — only main.ts does.
+      // We assert via a fresh app with the same Helmet config.
+      const res = await fetch(`${serverUrl}/api`);
+      const csp = res.headers.get('content-security-policy');
+      // The test app does mount helmet() in beforeAll above
       expect(csp).toBeDefined();
+      expect(csp).toContain("default-src 'none'");
+      expect(csp).toContain("frame-ancestors 'none'");
+      expect(csp).toContain("base-uri 'none'");
     });
   });
 
@@ -614,33 +613,24 @@ describe('Security (e2e)', () => {
   // ────────────────────────────────────────────────────────────────────
 
   describe('Cookie security flags', () => {
-    it('sets HttpOnly on the auth cookie', async () => {
-      const res = await request(app.getHttpServer())
-        .post('/api/auth/login')
-        .send(adminCredentials);
-      const cookies = res.headers['set-cookie'];
-      const cookieStr = Array.isArray(cookies) ? cookies.join(';') : cookies;
-      expect(cookieStr).toContain('HttpOnly');
+    // Use the shared authCookie from beforeAll to avoid hitting the
+    // login throttle in this file. The cookie was issued by an actual
+    // /auth/login call so it has all the real flags.
+    const cookieStr = () => authCookie.join(';');
+
+    it('sets HttpOnly on the auth cookie', () => {
+      expect(cookieStr()).toContain('HttpOnly');
     });
 
-    it('sets SameSite=Strict on the auth cookie', async () => {
-      const res = await request(app.getHttpServer())
-        .post('/api/auth/login')
-        .send(adminCredentials);
-      const cookies = res.headers['set-cookie'];
-      const cookieStr = Array.isArray(cookies) ? cookies.join(';') : cookies;
-      expect(cookieStr).toContain('SameSite=Strict');
+    it('sets SameSite=Strict on the auth cookie', () => {
+      expect(cookieStr()).toContain('SameSite=Strict');
     });
 
-    it('VULN: does NOT set Secure flag in non-production env', async () => {
-      // The cookie is only secure if NODE_ENV === 'production'
-      // Tests run with NODE_ENV unset/test, so Secure should NOT be present
-      const res = await request(app.getHttpServer())
-        .post('/api/auth/login')
-        .send(adminCredentials);
-      const cookies = res.headers['set-cookie'];
-      const cookieStr = Array.isArray(cookies) ? cookies.join(';') : cookies;
-      expect(cookieStr).not.toContain('Secure');
+    it('does NOT set Secure flag when COOKIE_SECURE=false (dev opt-out)', () => {
+      // Tests set COOKIE_SECURE=false to allow the cookie over plain HTTP.
+      // In any other case (including when COOKIE_SECURE is unset), the
+      // default is `true` — verified by the production main.ts path.
+      expect(cookieStr()).not.toContain('Secure');
     });
   });
 
@@ -687,5 +677,36 @@ describe('Security (e2e)', () => {
       expect(row1.name).not.toBe(row2.name);
       expect(row1.email).not.toBe(row2.email);
     });
+  });
+
+  // ────────────────────────────────────────────────────────────────────
+  // [H2] Login rate limiting — runs LAST so it doesn't exhaust the
+  // throttle window for the other tests above.
+  // ────────────────────────────────────────────────────────────────────
+
+  describe('[H2] Login rate limiting', () => {
+    it('returns 429 after the per-IP login limit is exceeded', async () => {
+      // Arrange — fire more than LOGIN_THROTTLE_LIMIT (500 in tests, 5
+      // in prod). The throttler should reject the excess.
+      const attempts = 600;
+      const responses: number[] = [];
+
+      // Act — fire all requests in parallel
+      await Promise.all(
+        Array.from({ length: attempts }, () =>
+          request(app.getHttpServer())
+            .post('/api/auth/login')
+            .send({
+              email: adminCredentials.email,
+              password: 'wrong-password',
+            })
+            .then((res) => responses.push(res.status)),
+        ),
+      );
+
+      // Assert — at least one 429 fired
+      expect(responses).toHaveLength(attempts);
+      expect(responses.some((s) => s === 429)).toBe(true);
+    }, 60_000);
   });
 });

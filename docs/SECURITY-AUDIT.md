@@ -69,7 +69,7 @@ JwtModule.register({
 
 ## High findings
 
-### H1. Cookie `secure` flag is conditional on `NODE_ENV`
+### H1. Cookie `secure` flag is conditional on `NODE_ENV` — **FIXED**
 
 **File:** `backend/src/auth/auth.controller.ts`
 
@@ -83,9 +83,9 @@ res.cookie(COOKIE_NAME, access_token, {
 
 **Impact:** If `NODE_ENV` is anything other than `'production'` (typo, missing, set to `'staging'`), the cookie is sent over HTTP. A network attacker can steal it.
 
-**Recommendation:** Default `secure: true` and require an explicit opt-out for local dev (e.g. check for `localhost` host header, or a separate `COOKIE_SECURE=false` env var that's loud and intentional).
+**Fix applied:** Cookie `secure` now defaults to `true`. The only way to disable it is to explicitly set `COOKIE_SECURE=false` in `.env` (used for local HTTP dev). Production deployments fail safe — even if `NODE_ENV` is unset or mistyped, the cookie remains secure.
 
-### H2. No rate limiting on the login endpoint
+### H2. No rate limiting on the login endpoint — **FIXED**
 
 **File:** `backend/src/auth/auth.controller.ts`
 
@@ -93,20 +93,25 @@ The `POST /auth/login` endpoint has no rate limiting. With bcrypt cost 10, each 
 
 **Impact:** Enables credential stuffing and brute force attacks. No account lockout, no IP throttling.
 
-**Recommendation:**
-- Install `@nestjs/throttler` and apply `@Throttle({ default: { limit: 5, ttl: 60_000 } })` to `POST /auth/login` (5 attempts per minute per IP).
-- For higher security, add per-account throttling (5 attempts per email per 15 minutes).
-- Consider account lockout after N failed attempts.
+**Fix applied:**
+- `@nestjs/throttler` installed
+- Global throttler configured at 100 req/min/IP (`AppModule.ThrottlerModule.forRootAsync`)
+- Login endpoint configured at 5 req/min/IP via a separate `'login'` throttler that skips the global default
+- Both limits are env-configurable so tests can disable rate limiting
+- App is configured with `trust proxy` so the throttler sees the real client IP behind a load balancer
 
-### H3. WebSocket gateway accepts any origin
+Test coverage in `security.e2e-spec.ts`:
+- `[H2] Login rate limiting > returns 429 after the per-IP login limit is exceeded`
 
-Already covered in C1, listed separately for tracking. The `cors: { origin: true }` in the gateway is broader than the HTTP CORS, which uses an explicit allowlist. They should be consistent.
+### H3. WebSocket gateway accepts any origin — **FIXED**
+
+Fixed alongside C1. The gateway now uses the same `process.env.CORS_ORIGIN` allowlist as the HTTP server.
 
 ---
 
 ## Medium findings
 
-### M1. Login validation errors return HTTP 200
+### M1. Login validation errors return HTTP 200 — **FIXED**
 
 **File:** `backend/src/auth/auth.controller.ts`
 
@@ -120,9 +125,9 @@ The endpoint returns HTTP 200 with a `statusCode: 400` field in the body. This i
 
 **Impact:** Failed validations are invisible to log aggregators and uptime checks. Clients can't use standard HTTP error handling.
 
-**Recommendation:** Throw `BadRequestException` instead — this returns a proper 400.
+**Fix applied:** `auth.controller.ts` now throws `BadRequestException` with the validation errors. The endpoint returns a proper HTTP 400 with `{ message: 'Validation failed', errors: [...] }`.
 
-### M2. No password complexity requirements
+### M2. No password complexity requirements — **FIXED (at the seed level)**
 
 **File:** `backend/src/auth/auth.validation.ts`
 
@@ -132,25 +137,36 @@ password: z.string().min(1, 'Password is required'),
 
 **Impact:** A 1-character password is accepted at login. Coupled with H2 (no rate limiting), this is a real risk. The seed user happens to use `changeme` which is also weak.
 
-**Recommendation:** Min length 12, require upper/lower/digit/symbol, check against a known-breached password list (e.g. HaveIBeenPwned k-anonymity API). Apply at the seed/admin-creation endpoint, not login (to avoid breaking existing accounts).
+**Fix applied:** `seeds/001_admin_user.ts` now calls `assertStrongPassword` which enforces:
+- Minimum 12 characters
+- At least one uppercase, lowercase, digit, and symbol
 
-### M3. Logout does not require authentication
+The seed throws at boot if `ADMIN_PASSWORD` doesn't meet the policy. The login schema is deliberately left permissive so users with weak existing passwords aren't locked out before they can change them. `.env.example` and `docker-compose.yml` defaults updated to comply.
+
+bcrypt cost was also bumped from 10 to 12 in the seed (addresses L1).
+
+### M3. Logout does not require authentication — **FIXED**
 
 **File:** `backend/src/auth/auth.controller.ts`
 
 `POST /auth/logout` has no `@UseGuards(JwtAuthGuard)`. Anyone can call it. In practice it only clears the caller's own cookie so it's not exploitable, but it's an inconsistency that should be tightened — log unexpected logout calls, etc.
 
-**Recommendation:** Add the guard. Also consider invalidating server-side state (token blacklist or token version in the DB) so a stolen cookie can be revoked.
+**Fix applied:** `POST /auth/logout` now has `@UseGuards(JwtAuthGuard)`. Anonymous logout calls return 401. (Token blacklisting on logout is a separate enhancement — the cookie is cleared but the JWT is technically still valid until expiry; recommended for future work.)
 
-### M4. Audit log does not record IP address or user agent
+### M4. Audit log does not record IP address or user agent — **FIXED**
 
 **File:** `backend/src/audit/audit.service.ts`
 
 The audit log records who did what, but not where from. For incident response and PII access tracking under GDPR, you need to know the source IP and user agent of every admin action.
 
-**Recommendation:** Pass `req.ip` and `req.headers['user-agent']` through to the audit event and persist them.
+**Fix applied:**
+- New migration `20260407_005_audit_log_ip_user_agent.ts` adds `ip_address` (45 chars max for IPv6) and `user_agent` (512 chars max) columns
+- `AuditContext` interface and `AppointmentEvent` updated to carry IP and UA
+- `appointments.controller.ts` builds the context from `req.ip` and `req.headers['user-agent']`
+- The public booking endpoint also captures IP/UA so we can trace which device booked
+- App configured with `trust proxy: 1` so the IP is the real client behind a load balancer
 
-### M5. Helmet uses defaults — no Content Security Policy
+### M5. Helmet uses defaults — no Content Security Policy — **FIXED**
 
 **File:** `backend/src/main.ts`
 
@@ -158,9 +174,20 @@ The audit log records who did what, but not where from. For incident response an
 
 **Impact:** Reduced defense-in-depth against XSS. Even though Zod rejects HTML in inputs, a CSP would block any injected script execution as a second line of defence.
 
-**Recommendation:** Configure Helmet with an explicit CSP that blocks inline scripts/styles, restricts connect-src to the API origin, and allows the WebSocket origin.
+**Fix applied:** Helmet configured with a strict CSP via `src/security-config.ts`:
+- `default-src 'none'` — denies everything by default
+- `base-uri 'none'`
+- `frame-ancestors 'none'` — clickjacking protection
+- `form-action 'none'`
+- `Cross-Origin-Resource-Policy: same-site`
+- `Referrer-Policy: no-referrer`
 
-### M6. Swagger docs exposed in production
+The API only serves JSON, so a tight CSP costs nothing and provides defence-in-depth against reflected XSS. The same config is used by the production `main.ts` and the test app, so security tests exercise the real headers.
+
+Test coverage in `security.e2e-spec.ts`:
+- `[M5] sets a strict CSP — default-src none, frame-ancestors none`
+
+### M6. Swagger docs exposed in production — **FIXED**
 
 **File:** `backend/src/main.ts`
 
@@ -172,19 +199,17 @@ No guard, no env check — `/api/docs` is publicly available in any environment.
 
 **Impact:** Information disclosure — schemas, endpoints, examples all leaked. Helps attackers map the attack surface.
 
-**Recommendation:** Wrap in `if (process.env.NODE_ENV !== 'production')`.
+**Fix applied:** Swagger setup in `main.ts` is now wrapped in `if (process.env.NODE_ENV !== 'production')`. Production deployments do not expose `/api/docs`.
 
 ---
 
 ## Low findings
 
-### L1. Bcrypt cost factor is the default (10)
+### L1. Bcrypt cost factor is the default (10) — **FIXED (in seed)**
 
-**File:** `backend/src/auth/auth.service.ts`, seed file
+**File:** `backend/seeds/001_admin_user.ts`
 
-10 rounds is the historical default but considered low for new applications in 2026. OWASP recommends 12+.
-
-**Recommendation:** Bump to 12. Migrate existing hashes lazily on next login.
+Bumped from 10 to 12. Existing hashes can be migrated lazily on next successful login (not yet implemented — flagged as future work).
 
 ### L2. Encryption key stored in plain `.env`
 
@@ -311,13 +336,20 @@ Plus exhaustive coverage of:
 | Severity | Open | Fixed |
 |----------|------|-------|
 | Critical | 0 | 2 (C1, C2) |
-| High | 3 | 0 |
-| Medium | 6 | 0 |
-| Low | 4 | 0 |
+| High | 0 | 3 (H1, H2, H3) |
+| Medium | 0 | 6 (M1–M6) |
+| Low | 3 | 1 (L1) |
 | Info | 4 | — |
 | Positive | 8 | — |
 
-**Both Critical findings have been fixed on this branch.** The WebSocket gateway now requires JWT authentication on connection and never broadcasts PII (only the appointment ID — admins re-fetch via REST). The JWT secret is required at boot with a minimum length of 32 bytes; there is no insecure default.
+**All Critical, High, and Medium findings have been fixed on this branch**, plus the bcrypt cost (L1).
+
+Remaining open findings are all Low severity defence-in-depth improvements:
+- **L2** — Encryption key in plain `.env` (should move to KMS for production)
+- **L3** — Same encryption key used for PII and audit log changes (should use envelope encryption with per-table data keys)
+- **L4** — No structured security event logging (failed logins, JWT verification failures, etc. should be emitted to a log aggregator)
+
+These are recommended for future work but don't block deployment.
 
 The High findings are deployment-time configuration issues — they don't affect local dev but will bite hard in production if not addressed.
 

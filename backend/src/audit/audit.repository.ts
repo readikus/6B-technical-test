@@ -8,6 +8,8 @@ export interface AuditRow {
   admin_user_id: string | null;
   action: string;
   changes: string;
+  ip_address: string | null;
+  user_agent: string | null;
   created_at: string;
 }
 
@@ -20,6 +22,8 @@ export class AuditRepository {
     action: string;
     changes: string;
     admin_user_id?: string | null;
+    ip_address?: string | null;
+    user_agent?: string | null;
   }): Promise<AuditRow> {
     const [row] = await this.db<AuditRow>('audit_log')
       .insert(data)

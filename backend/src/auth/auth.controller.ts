@@ -7,8 +7,10 @@ import {
   Res,
   HttpCode,
   HttpStatus,
+  BadRequestException,
   UseGuards,
 } from '@nestjs/common';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -17,10 +19,29 @@ import { loginSchema } from './auth.validation';
 const COOKIE_NAME = 'admin_token';
 const EIGHT_HOURS_MS = 8 * 60 * 60 * 1000;
 
+/**
+ * Cookie security flags.
+ *
+ * `Secure` defaults to true so that production deployments fail safe.
+ * Local development over plain HTTP must explicitly opt out by setting
+ * COOKIE_SECURE=false in `.env`. NODE_ENV is no longer the deciding
+ * factor — that previously caused silent downgrades when NODE_ENV was
+ * unset, mistyped, or set to 'staging'.
+ */
+function isCookieSecure(): boolean {
+  return process.env.COOKIE_SECURE !== 'false';
+}
+
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  // The 'login' throttler is configured in AppModule.ThrottlerModule
+  // (5 attempts per IP per minute by default; raise via env vars in
+  // tests). Skip the global 'default' throttler so the two don't
+  // double-count.
+  @SkipThrottle({ default: true })
+  @Throttle({ login: {} })
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(
@@ -29,11 +50,13 @@ export class AuthController {
   ) {
     const result = loginSchema.safeParse(body);
     if (!result.success) {
-      const errors = result.error.issues.map((issue) => ({
-        field: issue.path.join('.'),
-        message: issue.message,
-      }));
-      return { statusCode: 400, message: 'Validation failed', errors };
+      throw new BadRequestException({
+        message: 'Validation failed',
+        errors: result.error.issues.map((issue) => ({
+          field: issue.path.join('.'),
+          message: issue.message,
+        })),
+      });
     }
 
     const { access_token } = await this.authService.login(
@@ -43,7 +66,7 @@ export class AuthController {
 
     res.cookie(COOKIE_NAME, access_token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isCookieSecure(),
       sameSite: 'strict',
       maxAge: EIGHT_HOURS_MS,
       path: '/',
@@ -52,10 +75,16 @@ export class AuthController {
     return { ok: true };
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   logout(@Res({ passthrough: true }) res: Response) {
-    res.clearCookie(COOKIE_NAME, { path: '/' });
+    res.clearCookie(COOKIE_NAME, {
+      httpOnly: true,
+      secure: isCookieSecure(),
+      sameSite: 'strict',
+      path: '/',
+    });
     return { ok: true };
   }
 

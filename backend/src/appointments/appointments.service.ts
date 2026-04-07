@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { EncryptionService } from '../encryption/encryption.service';
-import { AppointmentEvent, APPOINTMENT_AUDIT } from '../audit/audit.events';
+import {
+  AppointmentEvent,
+  APPOINTMENT_AUDIT,
+  AuditContext,
+} from '../audit/audit.events';
 import {
   AppointmentsRepository,
   AppointmentRow,
@@ -21,7 +25,10 @@ export class AppointmentsService {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
-  async create(dto: CreateAppointmentDto): Promise<AppointmentRow> {
+  async create(
+    dto: CreateAppointmentDto,
+    context: AuditContext = {},
+  ): Promise<AppointmentRow> {
     const data: Record<string, unknown> = { ...dto };
     for (const field of PII_FIELDS) {
       data[field] = this.encryption.encrypt(dto[field]);
@@ -32,7 +39,7 @@ export class AppointmentsService {
 
     this.eventEmitter.emit(
       APPOINTMENT_AUDIT,
-      new AppointmentEvent('created', row.id, dto),
+      new AppointmentEvent('created', row.id, dto, context),
     );
     this.eventEmitter.emit('appointment.created', decrypted);
 
@@ -52,7 +59,7 @@ export class AppointmentsService {
   async update(
     id: string,
     dto: UpdateAppointmentDto,
-    adminUserId?: string,
+    context: AuditContext = {},
   ): Promise<AppointmentRow> {
     const existing = await this.repo.findById(id);
     const decryptedExisting = this.decryptRow(existing);
@@ -83,19 +90,19 @@ export class AppointmentsService {
           : ('updated' as const);
       this.eventEmitter.emit(
         APPOINTMENT_AUDIT,
-        new AppointmentEvent(action, id, changes, adminUserId),
+        new AppointmentEvent(action, id, changes, context),
       );
     }
 
     return decrypted;
   }
 
-  async remove(id: string, adminUserId?: string): Promise<void> {
+  async remove(id: string, context: AuditContext = {}): Promise<void> {
     await this.repo.remove(id);
 
     this.eventEmitter.emit(
       APPOINTMENT_AUDIT,
-      new AppointmentEvent('deleted', id, {}, adminUserId),
+      new AppointmentEvent('deleted', id, {}, context),
     );
   }
 
