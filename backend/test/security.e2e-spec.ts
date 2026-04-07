@@ -60,7 +60,7 @@ describe('Security (e2e)', () => {
   beforeAll(async () => {
     process.env.ENCRYPTION_KEY = 'a'.repeat(64);
     process.env.POSTGRES_DB = testDb;
-    process.env.JWT_SECRET = 'test-jwt-secret';
+    process.env.JWT_SECRET = 'test-jwt-secret-must-be-at-least-32-bytes-long';
 
     // Create test DB if needed
     const adminDb = Knex({
@@ -138,13 +138,53 @@ describe('Security (e2e)', () => {
   // ────────────────────────────────────────────────────────────────────
 
   describe('[C1] WebSocket gateway authentication', () => {
-    it('VULN: unauthenticated client can receive new-appointment broadcasts with PII', async () => {
-      // Arrange — connect to the WebSocket WITHOUT any auth cookie
+    it('disconnects unauthenticated WebSocket clients before any broadcast', async () => {
+      // Arrange — connect WITHOUT any auth cookie
       const socket: Socket = ioClient(serverUrl, {
         transports: ['websocket'],
       });
 
-      // Wait for the socket to be fully connected before triggering anything
+      // The server should disconnect us immediately on connection
+      const disconnected = await new Promise<boolean>((resolve) => {
+        const timeout = setTimeout(() => resolve(false), 3000);
+        socket.on('disconnect', () => {
+          clearTimeout(timeout);
+          resolve(true);
+        });
+      });
+
+      socket.disconnect();
+      expect(disconnected).toBe(true);
+    }, 10_000);
+
+    it('disconnects WebSocket clients with an invalid token', async () => {
+      // Arrange — connect with a forged token
+      const socket: Socket = ioClient(serverUrl, {
+        transports: ['websocket'],
+        extraHeaders: { Cookie: 'admin_token=not.a.valid.jwt' },
+      });
+
+      const disconnected = await new Promise<boolean>((resolve) => {
+        const timeout = setTimeout(() => resolve(false), 3000);
+        socket.on('disconnect', () => {
+          clearTimeout(timeout);
+          resolve(true);
+        });
+      });
+
+      socket.disconnect();
+      expect(disconnected).toBe(true);
+    }, 10_000);
+
+    it('authenticated client receives only the appointment ID — no PII', async () => {
+      // Arrange — connect WITH a valid auth cookie
+      const cookieHeader = authCookie.map((c) => c.split(';')[0]).join('; ');
+      const socket: Socket = ioClient(serverUrl, {
+        transports: ['websocket'],
+        extraHeaders: { Cookie: cookieHeader },
+      });
+
+      // Wait for connection
       await new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(
           () => reject(new Error('Socket failed to connect')),
@@ -160,7 +200,7 @@ describe('Security (e2e)', () => {
         });
       });
 
-      // Set up the listener BEFORE triggering the event
+      // Listen for the broadcast
       const broadcastPromise = new Promise<Record<string, unknown>>(
         (resolve, reject) => {
           const timeout = setTimeout(
@@ -177,9 +217,7 @@ describe('Security (e2e)', () => {
         },
       );
 
-      // Trigger via raw HTTP through the listening server (not supertest's
-      // internal dispatcher, so it goes through the same instance the
-      // WebSocket is attached to)
+      // Trigger via raw HTTP
       const createRes = await fetch(`${serverUrl}/api/appointments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -187,16 +225,15 @@ describe('Security (e2e)', () => {
       });
       expect(createRes.status).toBe(201);
 
-      const receivedPayload = await broadcastPromise;
+      const payload = await broadcastPromise;
       socket.disconnect();
 
-      // Assert — the unauthenticated client received the full decrypted payload.
-      // This passes today because the gateway has no auth check.
-      // When C1 is fixed, this test should be inverted: expect connection
-      // refusal or no payload received.
-      expect(receivedPayload.name).toBe(validAppointment.name);
-      expect(receivedPayload.email).toBe(validAppointment.email);
-      expect(receivedPayload.phone).toBe(validAppointment.phone);
+      // Assert — payload contains ONLY the ID, no PII at all
+      expect(payload.id).toBeDefined();
+      expect(payload.name).toBeUndefined();
+      expect(payload.email).toBeUndefined();
+      expect(payload.phone).toBeUndefined();
+      expect(payload.description).toBeUndefined();
     }, 15_000);
   });
 

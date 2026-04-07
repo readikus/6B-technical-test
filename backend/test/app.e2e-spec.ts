@@ -9,6 +9,7 @@ describe('AppController (e2e)', () => {
 
   beforeEach(async () => {
     process.env.ENCRYPTION_KEY = 'a'.repeat(64);
+    process.env.JWT_SECRET = 'test-jwt-secret-must-be-at-least-32-bytes-long';
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();

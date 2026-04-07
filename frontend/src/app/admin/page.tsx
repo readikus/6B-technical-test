@@ -5,6 +5,7 @@ import { io } from 'socket.io-client';
 import { useAuth } from '@/lib/auth-context';
 import {
   fetchAppointments,
+  getAppointment,
   approveAppointment,
   deleteAppointment,
   parseError,
@@ -45,16 +46,28 @@ export default function AdminDashboardPage() {
   }, [loadAppointments]);
 
   useEffect(() => {
-    const socket = io(API_URL, { transports: ['websocket'] });
+    // The cookie auth is sent automatically because withCredentials is true
+    const socket = io(API_URL, {
+      transports: ['websocket'],
+      withCredentials: true,
+    });
 
-    socket.on('appointment.created', (appointment: ApiAppointment) => {
-      setAppointments((prev) => {
-        if (prev.some((a) => a.id === appointment.id)) return prev;
-        return [...prev, appointment].sort(
-          (a, b) =>
-            new Date(a.date_time).getTime() - new Date(b.date_time).getTime(),
-        );
-      });
+    socket.on('appointment.created', async ({ id }: { id: string }) => {
+      // The broadcast contains only the ID (no PII over the WebSocket).
+      // Re-fetch the full appointment via the authenticated REST endpoint.
+      try {
+        const appointment = await getAppointment(id);
+        setAppointments((prev) => {
+          if (prev.some((a) => a.id === appointment.id)) return prev;
+          return [...prev, appointment].sort(
+            (a, b) =>
+              new Date(a.date_time).getTime() -
+              new Date(b.date_time).getTime(),
+          );
+        });
+      } catch {
+        // If the fetch fails, silently ignore — the next refresh will catch it
+      }
     });
 
     return () => {

@@ -12,7 +12,7 @@ A companion test file `backend/test/security.e2e-spec.ts` actively exercises eve
 
 ## Critical findings
 
-### C1. WebSocket gateway broadcasts PII to unauthenticated clients
+### C1. WebSocket gateway broadcasts PII to unauthenticated clients — **FIXED**
 
 **File:** `backend/src/appointments/appointments.gateway.ts`
 
@@ -32,13 +32,18 @@ export class AppointmentsGateway {
 
 **Impact:** Any unauthenticated user — from any origin — can connect to `ws://api/socket.io` and receive a real-time stream of patient PII. This is a HIPAA/GDPR breach in production.
 
-**Recommendation:**
-1. Restrict CORS origin to the configured frontend origin (same as the HTTP server).
-2. Add a connection-time auth handler that validates the JWT cookie and rejects unauthenticated sockets.
-3. Consider scoping events to admin "rooms" — patients should never receive these events.
-4. Strip PII from the broadcast payload — emit only an ID and `type: 'created'`, then have the admin frontend re-fetch through the authenticated REST endpoint.
+**Fix applied:**
+1. ✅ Gateway CORS now uses the same allowlist as the HTTP server (`process.env.CORS_ORIGIN`).
+2. ✅ `handleConnection` parses the auth cookie from the handshake and verifies the JWT — rejects with `client.disconnect(true)` if missing or invalid.
+3. ✅ The broadcast payload now contains **only the appointment ID** — no PII is ever sent over the WebSocket. The admin frontend re-fetches the full record via the authenticated `GET /appointments/:id` endpoint.
+4. Refused connection attempts are logged for incident response.
 
-### C2. JWT secret falls back to `'dev-jwt-secret'` when env var unset
+Test coverage in `security.e2e-spec.ts`:
+- `disconnects unauthenticated WebSocket clients before any broadcast`
+- `disconnects WebSocket clients with an invalid token`
+- `authenticated client receives only the appointment ID — no PII`
+
+### C2. JWT secret falls back to `'dev-jwt-secret'` when env var unset — **FIXED**
 
 **File:** `backend/src/auth/auth.module.ts:10`
 
@@ -51,7 +56,14 @@ JwtModule.register({
 
 **Impact:** If `JWT_SECRET` is missing in production (common deployment misconfiguration), all tokens are signed with a publicly known string. Attackers can forge admin tokens trivially.
 
-**Recommendation:** Throw at boot if `JWT_SECRET` is missing or shorter than 32 bytes. Never have a default. Same applies to `ENCRYPTION_KEY` (which the encryption service does require — apply the same pattern here).
+**Fix applied:** `auth.module.ts` now uses `JwtModule.registerAsync` with a `useFactory` that calls `requireJwtSecret()`. This function:
+- Throws if `JWT_SECRET` is missing or empty
+- Throws if `JWT_SECRET` is shorter than 32 bytes
+- Runs at module instantiation time (not import time), so tests can set the env var in `beforeAll`
+
+`docker-compose.yml` no longer provides a default — `${JWT_SECRET:?...}` causes Docker Compose to abort with a clear error message if the variable is missing in `.env`.
+
+`.env.example` updated to show a 32+ byte placeholder.
 
 ---
 
@@ -296,16 +308,16 @@ Plus exhaustive coverage of:
 
 ## Summary
 
-| Severity | Count |
-|----------|-------|
-| Critical | 2 |
-| High | 3 |
-| Medium | 6 |
-| Low | 4 |
-| Info | 4 |
-| Positive | 8 |
+| Severity | Open | Fixed |
+|----------|------|-------|
+| Critical | 0 | 2 (C1, C2) |
+| High | 3 | 0 |
+| Medium | 6 | 0 |
+| Low | 4 | 0 |
+| Info | 4 | — |
+| Positive | 8 | — |
 
-**The two Critical findings (C1, C2) should be fixed before any production deployment.** C1 is the most severe — patient PII is currently broadcast to any unauthenticated WebSocket client. The httpOnly cookie change in `bug/admin-login` was a step in the right direction, but the WebSocket gateway needs the same treatment.
+**Both Critical findings have been fixed on this branch.** The WebSocket gateway now requires JWT authentication on connection and never broadcasts PII (only the appointment ID — admins re-fetch via REST). The JWT secret is required at boot with a minimum length of 32 bytes; there is no insecure default.
 
 The High findings are deployment-time configuration issues — they don't affect local dev but will bite hard in production if not addressed.
 
