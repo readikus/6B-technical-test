@@ -2,6 +2,15 @@ server:
   port: ${PORT:3002}
   servlet:
     context-path: /api
+  # Tomcat ships with an 8KB header limit, which is far smaller than
+  # Node's ~80KB default. With cumulative cookies on a multi-port dev
+  # host (e.g. localhost:3001 NestJS + localhost:3002 Spring + stale
+  # admin_token cookies from prior test runs), 8KB is reached very
+  # quickly and Tomcat rejects the request before Spring sees it —
+  # the response then has no CORS headers, and the browser surfaces
+  # it as a generic "Failed to fetch" with no clue why. Bumping to
+  # 64KB matches NestJS's behaviour for parity.
+  max-http-request-header-size: 64KB
 
 spring:
   datasource:
@@ -45,3 +54,11 @@ app:
     secure: ${COOKIE_SECURE:true}
   cors:
     origins: ${CORS_ORIGIN:http://localhost:3000}
+  websocket:
+    # netty-socketio server port. Separate from the Tomcat HTTP
+    # port because netty-socketio is its own embedded netty server
+    # and cannot share Tomcat's listening socket. The frontend
+    # connects via NEXT_PUBLIC_WEBSOCKET_URL, which docker-compose
+    # builds from this port.
+    host: ${APP_WEBSOCKET_HOST:0.0.0.0}
+    port: ${APP_WEBSOCKET_PORT:3003}

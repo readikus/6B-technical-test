@@ -37,3 +37,9 @@ app:
     global-limit: 10000
     login-window-ms: 60000
     global-window-ms: 60000
+  # Disable the netty-socketio lifecycle in tests so multiple
+  # cached @SpringBootTest contexts in the same JVM don't fight
+  # over port 3003. The bean still exists (so AppointmentBroadcaster
+  # injection works), it just never binds to a port.
+  websocket:
+    enabled: false

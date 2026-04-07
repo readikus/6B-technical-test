@@ -11,6 +11,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.OffsetDateTime;
@@ -39,13 +40,16 @@ class AppointmentServiceTest {
     @Mock
     private AuditService auditService;
 
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
+
     private EncryptionService encryptionService;
     private AppointmentService service;
 
     @BeforeEach
     void setUp() {
         encryptionService = new EncryptionService("a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2");
-        service = new AppointmentService(repository, encryptionService, auditService);
+        service = new AppointmentService(repository, encryptionService, auditService, eventPublisher);
     }
 
     @Test
@@ -95,6 +99,30 @@ class AppointmentServiceTest {
         // The service must pass the exact context through — no
         // swallowing, no wrapping, no defaulting.
         verify(auditService).log(eq("created"), any(), any(), eq(ANON_CONTEXT));
+    }
+
+    @Test
+    void createPublishesAppointmentCreatedEventWithSavedId() {
+        CreateAppointmentRequest request = new CreateAppointmentRequest(
+                "Jane", "jane@test.com", "+447700900001", "Checkup", "2026-12-15T10:00:00Z");
+        UUID savedId = UUID.randomUUID();
+        when(repository.save(any(Appointment.class))).thenAnswer(i -> {
+            Appointment a = i.getArgument(0);
+            a.setId(savedId);
+            a.setCreatedAt(OffsetDateTime.now());
+            a.setUpdatedAt(OffsetDateTime.now());
+            return a;
+        });
+
+        service.create(request, ANON_CONTEXT);
+
+        // The Socket.IO broadcaster listens for AppointmentCreatedEvent.
+        // The event payload must carry the *saved* DB id (not a new
+        // random one) so the frontend can re-fetch the right row.
+        ArgumentCaptor<AppointmentCreatedEvent> captor =
+                ArgumentCaptor.forClass(AppointmentCreatedEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertEquals(savedId, captor.getValue().id());
     }
 
     @Test

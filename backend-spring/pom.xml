@@ -75,6 +75,21 @@
             <artifactId>jackson-datatype-jsr310</artifactId>
         </dependency>
 
+        <!--
+            Socket.IO server (Java implementation, Engine.IO v4 / Socket.IO
+            v4 protocol). Provides wire-compatibility with the existing
+            socket.io-client@4.8.3 frontend so the same client code works
+            against the NestJS backend (which uses @nestjs/websockets +
+            socket.io) and the Spring Boot backend transparently.
+            netty-socketio runs its own embedded netty server on a separate
+            port from Tomcat.
+        -->
+        <dependency>
+            <groupId>com.corundumstudio.socketio</groupId>
+            <artifactId>netty-socketio</artifactId>
+            <version>2.0.12</version>
+        </dependency>
+
         <!-- Test dependencies -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

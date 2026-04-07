@@ -5,6 +5,7 @@ import dev.sixbee.healthtech.dto.CreateAppointmentRequest;
 import dev.sixbee.healthtech.dto.UpdateAppointmentRequest;
 import dev.sixbee.healthtech.entity.Appointment;
 import dev.sixbee.healthtech.repository.AppointmentRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -22,11 +23,16 @@ public class AppointmentService {
     private final AppointmentRepository repository;
     private final EncryptionService encryptionService;
     private final AuditService auditService;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public AppointmentService(AppointmentRepository repository, EncryptionService encryptionService, AuditService auditService) {
+    public AppointmentService(AppointmentRepository repository,
+                              EncryptionService encryptionService,
+                              AuditService auditService,
+                              ApplicationEventPublisher eventPublisher) {
         this.repository = repository;
         this.encryptionService = encryptionService;
         this.auditService = auditService;
+        this.eventPublisher = eventPublisher;
     }
 
     public AppointmentResponse create(CreateAppointmentRequest request, AuditContext context) {
@@ -47,6 +53,11 @@ public class AppointmentService {
         changes.put("description", request.description());
         changes.put("date_time", request.dateTime());
         auditService.log("created", saved.getId(), changes, context);
+
+        // Notify any connected admin clients via Socket.IO. Payload
+        // is restricted to the ID by AppointmentBroadcaster — no PII
+        // is published. Mirrors the NestJS @OnEvent flow.
+        eventPublisher.publishEvent(new AppointmentCreatedEvent(saved.getId()));
 
         return AppointmentResponse.from(decrypted);
     }

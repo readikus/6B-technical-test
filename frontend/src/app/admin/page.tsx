@@ -15,6 +15,15 @@ import { AppointmentsTable } from '@/components/appointments-table';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
+// Socket.IO endpoint. Defaults to API_URL because NestJS serves
+// Socket.IO from the same port as its HTTP API. The Spring Boot
+// backend serves it from a dedicated port (default 3003) because
+// netty-socketio is its own netty server and cannot share Tomcat's
+// listening socket — set NEXT_PUBLIC_WEBSOCKET_URL=http://localhost:3003
+// in .env when running against Spring.
+const WEBSOCKET_URL =
+  process.env.NEXT_PUBLIC_WEBSOCKET_URL || API_URL;
+
 export default function AdminDashboardPage() {
   const { logout } = useAuth();
   const [appointments, setAppointments] = useState<ApiAppointment[]>([]);
@@ -47,7 +56,7 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     // The cookie auth is sent automatically because withCredentials is true
-    const socket = io(API_URL, {
+    const socket = io(WEBSOCKET_URL, {
       transports: ['websocket'],
       withCredentials: true,
     });
