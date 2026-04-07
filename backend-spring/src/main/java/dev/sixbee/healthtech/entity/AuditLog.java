@@ -14,59 +14,99 @@ import java.util.UUID;
 @Table(name = "audit_log")
 public class AuditLog {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.UUID)
+  private UUID id;
 
-    @Column(name = "appointment_id")
-    private UUID appointmentId;
+  @Column(name = "appointment_id")
+  private UUID appointmentId;
 
-    @Column(name = "admin_user_id")
-    private UUID adminUserId;
+  @Column(name = "admin_user_id")
+  private UUID adminUserId;
 
-    @Column(nullable = false)
-    private String action;
+  @Column(nullable = false)
+  private String action;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
-    private String changes;
+  @Column(nullable = false, columnDefinition = "TEXT")
+  private String changes;
 
-    /** Max IPv6 string length is 45 characters (RFC 4291). */
-    @Column(name = "ip_address", length = 45)
-    private String ipAddress;
+  /** Max IPv6 string length is 45 characters (RFC 4291). */
+  @Column(name = "ip_address", length = 45)
+  private String ipAddress;
 
-    /** Truncated to 512 chars before insert. Matches NestJS migration 005. */
-    @Column(name = "user_agent", length = 512)
-    private String userAgent;
+  /** Truncated to 512 chars before insert. Matches NestJS migration 005. */
+  @Column(name = "user_agent", length = 512)
+  private String userAgent;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private OffsetDateTime createdAt;
+  @Column(name = "created_at", nullable = false, updatable = false)
+  private OffsetDateTime createdAt;
 
-    @PrePersist
-    protected void onCreate() {
-        createdAt = OffsetDateTime.now();
-    }
+  @PrePersist
+  protected void onCreate() {
+    createdAt = OffsetDateTime.now();
+  }
 
-    public UUID getId() { return id; }
-    public void setId(UUID id) { this.id = id; }
+  public UUID getId() {
+    return id;
+  }
 
-    public UUID getAppointmentId() { return appointmentId; }
-    public void setAppointmentId(UUID appointmentId) { this.appointmentId = appointmentId; }
+  public void setId(UUID id) {
+    this.id = id;
+  }
 
-    public UUID getAdminUserId() { return adminUserId; }
-    public void setAdminUserId(UUID adminUserId) { this.adminUserId = adminUserId; }
+  public UUID getAppointmentId() {
+    return appointmentId;
+  }
 
-    public String getAction() { return action; }
-    public void setAction(String action) { this.action = action; }
+  public void setAppointmentId(UUID appointmentId) {
+    this.appointmentId = appointmentId;
+  }
 
-    public String getChanges() { return changes; }
-    public void setChanges(String changes) { this.changes = changes; }
+  public UUID getAdminUserId() {
+    return adminUserId;
+  }
 
-    public String getIpAddress() { return ipAddress; }
-    public void setIpAddress(String ipAddress) { this.ipAddress = ipAddress; }
+  public void setAdminUserId(UUID adminUserId) {
+    this.adminUserId = adminUserId;
+  }
 
-    public String getUserAgent() { return userAgent; }
-    public void setUserAgent(String userAgent) { this.userAgent = userAgent; }
+  public String getAction() {
+    return action;
+  }
 
-    public OffsetDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
+  public void setAction(String action) {
+    this.action = action;
+  }
+
+  public String getChanges() {
+    return changes;
+  }
+
+  public void setChanges(String changes) {
+    this.changes = changes;
+  }
+
+  public String getIpAddress() {
+    return ipAddress;
+  }
+
+  public void setIpAddress(String ipAddress) {
+    this.ipAddress = ipAddress;
+  }
+
+  public String getUserAgent() {
+    return userAgent;
+  }
+
+  public void setUserAgent(String userAgent) {
+    this.userAgent = userAgent;
+  }
+
+  public OffsetDateTime getCreatedAt() {
+    return createdAt;
+  }
+
+  public void setCreatedAt(OffsetDateTime createdAt) {
+    this.createdAt = createdAt;
+  }
 }

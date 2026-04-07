@@ -12,6 +12,21 @@ server:
   # 64KB matches NestJS's behaviour for parity.
   max-http-request-header-size: 64KB
 
+# Spring Boot Actuator — health and info only. Heapdump, env,
+# beans, and loggers are deliberately NOT exposed: they leak
+# internal state (and in the case of env, secrets).
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+  info:
+    env:
+      enabled: true
+
 spring:
   datasource:
     url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:sixbee_health}?stringtype=unspecified
