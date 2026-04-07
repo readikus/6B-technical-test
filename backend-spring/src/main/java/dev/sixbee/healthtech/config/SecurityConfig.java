@@ -16,6 +16,8 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.header.writers.CrossOriginResourcePolicyHeaderWriter;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.web.cors.CorsConfigurationSource;
 
 import java.io.IOException;
@@ -41,6 +43,15 @@ public class SecurityConfig {
         this.corsConfigurationSource = corsConfigurationSource;
     }
 
+    /**
+     * Content Security Policy directives for an API that only ever
+     * serves JSON. Everything is denied by default. Mirrors
+     * backend/src/security-config.ts (helmetConfig) in the NestJS
+     * backend so the two APIs emit identical CSP headers.
+     */
+    private static final String CSP_DIRECTIVES =
+            "default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'";
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -51,6 +62,19 @@ public class SecurityConfig {
                 // moves to SameSite=Lax (e.g. multi-domain), this
                 // should be re-enabled with a double-submit token.
                 .csrf(csrf -> csrf.disable())
+                // Strict CSP + defence-in-depth headers. Spring
+                // Security ships sensible defaults (X-Content-Type-
+                // Options, X-Frame-Options, HSTS, Cache-Control) so
+                // we only need to override the three that the NestJS
+                // Helmet config customises: CSP, CORP, and
+                // Referrer-Policy.
+                .headers(headers -> headers
+                        .contentSecurityPolicy(csp -> csp.policyDirectives(CSP_DIRECTIVES))
+                        .crossOriginResourcePolicy(corp -> corp.policy(
+                                CrossOriginResourcePolicyHeaderWriter.CrossOriginResourcePolicy.SAME_SITE))
+                        .referrerPolicy(rp -> rp.policy(
+                                ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER))
+                )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         // Public booking endpoint: patients create
