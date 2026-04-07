@@ -29,7 +29,7 @@ public class AppointmentService {
         this.auditService = auditService;
     }
 
-    public AppointmentResponse create(CreateAppointmentRequest request) {
+    public AppointmentResponse create(CreateAppointmentRequest request, AuditContext context) {
         Appointment appointment = new Appointment();
         appointment.setName(encryptionService.encrypt(request.name()));
         appointment.setEmail(encryptionService.encrypt(request.email()));
@@ -46,7 +46,7 @@ public class AppointmentService {
         changes.put("phone", request.phone());
         changes.put("description", request.description());
         changes.put("date_time", request.dateTime());
-        auditService.log("created", saved.getId(), changes);
+        auditService.log("created", saved.getId(), changes, context);
 
         return AppointmentResponse.from(decrypted);
     }
@@ -64,7 +64,7 @@ public class AppointmentService {
         return AppointmentResponse.from(decryptAppointment(appointment));
     }
 
-    public AppointmentResponse update(UUID id, UpdateAppointmentRequest request) {
+    public AppointmentResponse update(UUID id, UpdateAppointmentRequest request, AuditContext context) {
         Appointment appointment = findById(id);
         Map<String, Object> changes = new HashMap<>();
 
@@ -96,15 +96,15 @@ public class AppointmentService {
         Appointment saved = repository.save(appointment);
         Appointment decrypted = decryptAppointment(saved);
 
-        auditService.log("updated", id, changes);
+        auditService.log("updated", id, changes, context);
 
         return AppointmentResponse.from(decrypted);
     }
 
-    public void delete(UUID id) {
+    public void delete(UUID id, AuditContext context) {
         Appointment appointment = findById(id);
         repository.delete(appointment);
-        auditService.log("deleted", id, Map.of());
+        auditService.log("deleted", id, Map.of(), context);
     }
 
     private Appointment findById(UUID id) {

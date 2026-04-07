@@ -19,6 +19,9 @@ public class AuditService {
 
     private static final Logger log = LoggerFactory.getLogger(AuditService.class);
 
+    /** Matches the VARCHAR(512) column in schema.sql. */
+    private static final int MAX_USER_AGENT_LENGTH = 512;
+
     private final AuditLogRepository repository;
     private final EncryptionService encryptionService;
     private final ObjectMapper objectMapper;
@@ -29,12 +32,24 @@ public class AuditService {
         this.objectMapper = objectMapper;
     }
 
-    public void log(String action, UUID appointmentId, Map<String, Object> changes) {
+    /**
+     * Persist an audit log entry with full request context.
+     *
+     * @param action        one of "created", "updated", "deleted", "approved"
+     * @param appointmentId UUID of the appointment; set to null on delete
+     *                      so the row survives a CASCADE/SET NULL
+     * @param changes       key/value map of field changes; encrypted at rest
+     * @param context       admin id + IP + user agent from the request
+     */
+    public void log(String action, UUID appointmentId, Map<String, Object> changes, AuditContext context) {
         try {
             AuditLog entry = new AuditLog();
             entry.setAppointmentId("deleted".equals(action) ? null : appointmentId);
+            entry.setAdminUserId(context.adminUserId());
             entry.setAction(action);
             entry.setChanges(encryptionService.encrypt(objectMapper.writeValueAsString(changes)));
+            entry.setIpAddress(context.ipAddress());
+            entry.setUserAgent(truncateUserAgent(context.userAgent()));
             repository.save(entry);
         } catch (Exception e) {
             log.error("Failed to create audit log entry", e);
@@ -63,7 +78,20 @@ public class AuditService {
                 entry.getAdminUserId(),
                 entry.getAction(),
                 changes,
+                entry.getIpAddress(),
+                entry.getUserAgent(),
                 entry.getCreatedAt()
         );
+    }
+
+    /**
+     * Clamp the user agent to the column size. User agents in the
+     * wild can be arbitrarily long — e.g. browser extensions
+     * stacking their tokens on top. Truncating at 512 chars matches
+     * the NestJS controller's {@code ua.slice(0, 512)} behaviour.
+     */
+    private String truncateUserAgent(String ua) {
+        if (ua == null) return null;
+        return ua.length() > MAX_USER_AGENT_LENGTH ? ua.substring(0, MAX_USER_AGENT_LENGTH) : ua;
     }
 }

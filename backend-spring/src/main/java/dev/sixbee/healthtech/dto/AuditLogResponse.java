@@ -12,5 +12,7 @@ public record AuditLogResponse(
         @JsonProperty("admin_user_id") UUID adminUserId,
         String action,
         Map<String, Object> changes,
+        @JsonProperty("ip_address") String ipAddress,
+        @JsonProperty("user_agent") String userAgent,
         @JsonProperty("created_at") OffsetDateTime createdAt
 ) {}

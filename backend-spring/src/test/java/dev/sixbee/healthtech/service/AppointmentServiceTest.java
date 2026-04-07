@@ -15,6 +15,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -22,11 +23,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class AppointmentServiceTest {
+
+    private static final AuditContext ANON_CONTEXT = AuditContext.anonymous("10.0.0.1", "Mozilla/5.0");
+    private static final AuditContext ADMIN_CONTEXT = new AuditContext(UUID.randomUUID(), "10.0.0.2", "curl/8.0");
 
     @Mock
     private AppointmentRepository repository;
@@ -56,7 +61,7 @@ class AppointmentServiceTest {
             return a;
         });
 
-        AppointmentResponse response = service.create(request);
+        AppointmentResponse response = service.create(request, ANON_CONTEXT);
 
         assertNotNull(response.id());
         assertEquals("John Doe", response.name());
@@ -74,21 +79,22 @@ class AppointmentServiceTest {
     }
 
     @Test
-    void createEmitsAuditEvent() {
+    void createPropagatesAuditContextToAuditService() {
         CreateAppointmentRequest request = new CreateAppointmentRequest(
                 "Jane", "jane@test.com", "+447700900001", "Checkup", "2026-12-15T10:00:00Z");
-
-        when(repository.save(any(Appointment.class))).thenAnswer(invocation -> {
-            Appointment a = invocation.getArgument(0);
+        when(repository.save(any(Appointment.class))).thenAnswer(i -> {
+            Appointment a = i.getArgument(0);
             a.setId(UUID.randomUUID());
             a.setCreatedAt(OffsetDateTime.now());
             a.setUpdatedAt(OffsetDateTime.now());
             return a;
         });
 
-        service.create(request);
+        service.create(request, ANON_CONTEXT);
 
-        verify(auditService).log(any(), any(), any());
+        // The service must pass the exact context through — no
+        // swallowing, no wrapping, no defaulting.
+        verify(auditService).log(eq("created"), any(), any(), eq(ANON_CONTEXT));
     }
 
     @Test
@@ -164,7 +170,7 @@ class AppointmentServiceTest {
         UpdateAppointmentRequest request = new UpdateAppointmentRequest(
                 "Updated Name", null, null, null, null, "confirmed");
 
-        AppointmentResponse result = service.update(id, request);
+        AppointmentResponse result = service.update(id, request, ADMIN_CONTEXT);
 
         assertEquals("Updated Name", result.name());
         assertEquals("confirmed", result.status());
@@ -173,17 +179,36 @@ class AppointmentServiceTest {
     }
 
     @Test
-    void deleteRemovesAppointment() {
+    void updatePropagatesAdminContextToAuditService() {
+        UUID id = UUID.randomUUID();
+        Appointment existing = freshEncryptedAppointment(id);
+        when(repository.findById(id)).thenReturn(Optional.of(existing));
+        when(repository.save(any(Appointment.class))).thenAnswer(i -> i.getArgument(0));
+
+        UpdateAppointmentRequest request = new UpdateAppointmentRequest(
+                "Updated", null, null, null, null, null);
+        service.update(id, request, ADMIN_CONTEXT);
+
+        ArgumentCaptor<AuditContext> captor = ArgumentCaptor.forClass(AuditContext.class);
+        verify(auditService).log(eq("updated"), eq(id), any(), captor.capture());
+        assertEquals(ADMIN_CONTEXT, captor.getValue());
+        assertEquals("10.0.0.2", captor.getValue().ipAddress());
+        assertEquals("curl/8.0", captor.getValue().userAgent());
+        assertNotNull(captor.getValue().adminUserId());
+    }
+
+    @Test
+    void deleteRemovesAppointmentAndLogsAuditWithContext() {
         UUID id = UUID.randomUUID();
         Appointment appointment = new Appointment();
         appointment.setId(id);
 
         when(repository.findById(id)).thenReturn(Optional.of(appointment));
 
-        service.delete(id);
+        service.delete(id, ADMIN_CONTEXT);
 
         verify(repository).delete(appointment);
-        verify(auditService).log(any(), any(), any());
+        verify(auditService).log(eq("deleted"), eq(id), eq(Map.of()), eq(ADMIN_CONTEXT));
     }
 
     @Test
@@ -191,6 +216,21 @@ class AppointmentServiceTest {
         UUID id = UUID.randomUUID();
         when(repository.findById(id)).thenReturn(Optional.empty());
 
-        assertThrows(ResponseStatusException.class, () -> service.delete(id));
+        assertThrows(ResponseStatusException.class, () -> service.delete(id, ADMIN_CONTEXT));
+    }
+
+    private Appointment freshEncryptedAppointment(UUID id) {
+        Appointment a = new Appointment();
+        a.setId(id);
+        a.setName(encryptionService.encrypt("Original"));
+        a.setEmail(encryptionService.encrypt("orig@test.com"));
+        a.setPhone(encryptionService.encrypt("+447700900004"));
+        a.setDescription(encryptionService.encrypt("Original desc"));
+        a.setDateTime(OffsetDateTime.now());
+        a.setStatus("pending");
+        a.setMetadata("{}");
+        a.setCreatedAt(OffsetDateTime.now());
+        a.setUpdatedAt(OffsetDateTime.now());
+        return a;
     }
 }

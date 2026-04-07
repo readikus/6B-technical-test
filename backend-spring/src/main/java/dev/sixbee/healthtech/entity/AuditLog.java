@@ -30,6 +30,14 @@ public class AuditLog {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String changes;
 
+    /** Max IPv6 string length is 45 characters (RFC 4291). */
+    @Column(name = "ip_address", length = 45)
+    private String ipAddress;
+
+    /** Truncated to 512 chars before insert. Matches NestJS migration 005. */
+    @Column(name = "user_agent", length = 512)
+    private String userAgent;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 
@@ -52,6 +60,12 @@ public class AuditLog {
 
     public String getChanges() { return changes; }
     public void setChanges(String changes) { this.changes = changes; }
+
+    public String getIpAddress() { return ipAddress; }
+    public void setIpAddress(String ipAddress) { this.ipAddress = ipAddress; }
+
+    public String getUserAgent() { return userAgent; }
+    public void setUserAgent(String userAgent) { this.userAgent = userAgent; }
 
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(OffsetDateTime createdAt) { this.createdAt = createdAt; }
