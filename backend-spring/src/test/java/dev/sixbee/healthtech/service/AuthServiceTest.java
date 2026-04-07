@@ -1,7 +1,6 @@
 package dev.sixbee.healthtech.service;
 
 import dev.sixbee.healthtech.dto.LoginRequest;
-import dev.sixbee.healthtech.dto.LoginResponse;
 import dev.sixbee.healthtech.entity.AdminUser;
 import dev.sixbee.healthtech.repository.AdminUserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,6 +13,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -21,6 +21,9 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
+
+    private static final String PASSWORD = "password123";
+    private static final String EMAIL = "admin@test.com";
 
     @Mock
     private AdminUserRepository adminUserRepository;
@@ -35,34 +38,25 @@ class AuthServiceTest {
     }
 
     @Test
-    void loginWithValidCredentialsReturnsToken() {
-        BCryptPasswordEncoder encoder = new BCryptPasswordEncoder(10);
-        AdminUser admin = new AdminUser();
-        admin.setId(UUID.randomUUID());
-        admin.setEmail("admin@test.com");
-        admin.setPassword(encoder.encode("password123"));
-        admin.setActive(true);
+    void loginWithValidCredentialsReturnsSignedJwt() {
+        AdminUser admin = activeAdmin(EMAIL, PASSWORD);
+        when(adminUserRepository.findByEmail(EMAIL)).thenReturn(Optional.of(admin));
 
-        when(adminUserRepository.findByEmail("admin@test.com")).thenReturn(Optional.of(admin));
+        String token = authService.login(new LoginRequest(EMAIL, PASSWORD));
 
-        LoginResponse response = authService.login(new LoginRequest("admin@test.com", "password123"));
-        assertNotNull(response.accessToken());
-        assertTrue(jwtService.isValid(response.accessToken()));
+        assertNotNull(token);
+        assertTrue(jwtService.isValid(token));
+        assertEquals(admin.getId().toString(), jwtService.parseToken(token).getSubject());
+        assertEquals(EMAIL, jwtService.parseToken(token).get("email"));
     }
 
     @Test
     void loginWithInvalidPasswordThrows() {
-        BCryptPasswordEncoder encoder = new BCryptPasswordEncoder(10);
-        AdminUser admin = new AdminUser();
-        admin.setId(UUID.randomUUID());
-        admin.setEmail("admin@test.com");
-        admin.setPassword(encoder.encode("correct-password"));
-        admin.setActive(true);
-
-        when(adminUserRepository.findByEmail("admin@test.com")).thenReturn(Optional.of(admin));
+        AdminUser admin = activeAdmin(EMAIL, "correct-password");
+        when(adminUserRepository.findByEmail(EMAIL)).thenReturn(Optional.of(admin));
 
         assertThrows(AuthService.UnauthorizedException.class,
-                () -> authService.login(new LoginRequest("admin@test.com", "wrong-password")));
+                () -> authService.login(new LoginRequest(EMAIL, "wrong-password")));
     }
 
     @Test
@@ -71,5 +65,30 @@ class AuthServiceTest {
 
         assertThrows(AuthService.UnauthorizedException.class,
                 () -> authService.login(new LoginRequest("unknown@test.com", "password")));
+    }
+
+    @Test
+    void loginWithInactiveAccountThrows() {
+        AdminUser admin = activeAdmin(EMAIL, PASSWORD);
+        admin.setActive(false);
+        when(adminUserRepository.findByEmail(EMAIL)).thenReturn(Optional.of(admin));
+
+        assertThrows(AuthService.UnauthorizedException.class,
+                () -> authService.login(new LoginRequest(EMAIL, PASSWORD)));
+    }
+
+    /**
+     * Cost 10 is used here intentionally: existing hashes in a
+     * real database may predate the cost-12 bump (see AuthService
+     * BCRYPT_COST). Bcrypt's self-describing format means old
+     * hashes must still verify correctly.
+     */
+    private AdminUser activeAdmin(String email, String password) {
+        AdminUser admin = new AdminUser();
+        admin.setId(UUID.randomUUID());
+        admin.setEmail(email);
+        admin.setPassword(new BCryptPasswordEncoder(10).encode(password));
+        admin.setActive(true);
+        return admin;
     }
 }

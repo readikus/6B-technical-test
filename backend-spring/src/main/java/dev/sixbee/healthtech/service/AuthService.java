@@ -1,7 +1,6 @@
 package dev.sixbee.healthtech.service;
 
 import dev.sixbee.healthtech.dto.LoginRequest;
-import dev.sixbee.healthtech.dto.LoginResponse;
 import dev.sixbee.healthtech.entity.AdminUser;
 import dev.sixbee.healthtech.repository.AdminUserRepository;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -28,13 +27,22 @@ public class AuthService {
         this.passwordEncoder = new BCryptPasswordEncoder(BCRYPT_COST);
     }
 
-    public LoginResponse login(LoginRequest request) {
+    /**
+     * Verifies credentials and returns a signed JWT on success. The
+     * token is never returned in the HTTP response body — the
+     * controller wraps it in an httpOnly cookie via
+     * {@link dev.sixbee.healthtech.security.AuthCookie}.
+     *
+     * @return a signed JWT string
+     * @throws UnauthorizedException if the email is unknown, the
+     *         account is inactive, or the password does not match
+     */
+    public String login(LoginRequest request) {
         AdminUser admin = adminUserRepository.findByEmail(request.email())
                 .filter(a -> a.isActive() && passwordEncoder.matches(request.password(), a.getPassword()))
                 .orElseThrow(() -> new UnauthorizedException("Invalid credentials"));
 
-        String token = jwtService.generateToken(admin.getId(), admin.getEmail());
-        return new LoginResponse(token);
+        return jwtService.generateToken(admin.getId(), admin.getEmail());
     }
 
     public static class UnauthorizedException extends RuntimeException {

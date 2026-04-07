@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -14,7 +15,6 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-
 import org.springframework.web.cors.CorsConfigurationSource;
 
 import java.io.IOException;
@@ -39,12 +39,40 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
+                // CSRF is disabled because the app uses an httpOnly
+                // cookie with SameSite=Strict, which by itself blocks
+                // cross-origin form submissions. For a deployment that
+                // moves to SameSite=Lax (e.g. multi-domain), this
+                // should be re-enabled with a double-submit token.
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("POST", "/api/appointments").permitAll()
-                        .requestMatchers("POST", "/api/auth/login").permitAll()
-                        .requestMatchers("GET", "/api/health").permitAll()
+                        // Public booking endpoint: patients create
+                        // appointments without an account. Listing,
+                        // fetching, updating, and deleting all
+                        // require auth via .anyRequest() below.
+                        //
+                        // Paths are servlet-relative: the server.servlet
+                        // .context-path=/api is stripped by the servlet
+                        // container before Spring Security sees the
+                        // request. The previous config had TWO bugs:
+                        // (1) requestMatchers("POST", "/api/..") treats
+                        //     BOTH args as URL patterns, neither of
+                        //     which ever matches, silently falling
+                        //     through to .anyRequest().authenticated().
+                        // (2) The /api prefix would not match even
+                        //     with the right overload, because by
+                        //     then the context path has been stripped.
+                        // Symptom: SecurityConfig appeared to do
+                        // nothing, and GET /appointments (list all
+                        // PII) was NOT actually protected in isolation
+                        // — but every request also needed auth, so
+                        // login itself broke. Both bugs are fixed
+                        // here: use HttpMethod explicitly, and use
+                        // servlet-relative paths.
+                        .requestMatchers(HttpMethod.POST, "/appointments").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/health").permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(nestjsStyleEntryPoint()))
