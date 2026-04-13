@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { bookingSchema, type BookingFormData } from '../lib/schemas';
@@ -11,8 +11,6 @@ export default function BookingForm() {
   const [success, setSuccess] = useState(false);
   const [apiError, setApiError] = useState('');
 
-  const nameRef = useRef<HTMLInputElement>(null);
-
   const {
     register,
     handleSubmit,
@@ -22,12 +20,8 @@ export default function BookingForm() {
   } = useForm<BookingFormData>({
     resolver: zodResolver(bookingSchema),
     mode: 'onTouched',
-    defaultValues: { date_time: '' },
+    defaultValues: { name: '', email: '', phone: '', description: '', date_time: '' },
   });
-
-  useEffect(() => {
-    nameRef.current?.focus();
-  }, []);
 
   async function onSubmit(data: BookingFormData) {
     setApiError('');
@@ -66,23 +60,15 @@ export default function BookingForm() {
       )}
 
       <Field label="Full name" name="name" error={errors.name?.message}>
-        {(a11y) => {
-          const { ref, ...rest } = register('name');
-          return (
-            <input
-              {...rest}
-              ref={(el) => {
-                ref(el);
-                (nameRef as React.MutableRefObject<HTMLInputElement | null>).current = el;
-              }}
-              {...a11y}
-              type="text"
-              className={inputCls(errors.name)}
-              placeholder="Jane Smith"
-              autoFocus
-            />
-          );
-        }}
+        {(a11y) => (
+          <input
+            {...register('name')}
+            {...a11y}
+            type="text"
+            className={inputCls(errors.name)}
+            placeholder="Jane Smith"
+          />
+        )}
       </Field>
 
       <Field label="Email address" name="email" error={errors.email?.message}>

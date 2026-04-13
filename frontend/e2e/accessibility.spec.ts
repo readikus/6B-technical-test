@@ -28,6 +28,7 @@ async function expectNoA11yViolations(
   expect(violations, 'Accessibility violations found').toEqual([]);
 }
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin@sixbee.health';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'Ch4ngeMe!Now123';
 
@@ -54,14 +55,34 @@ async function waitForHydration(
   );
 }
 
-/** Authenticate by logging in through the UI. */
+/**
+ * Fix CORS for API requests. The backend may not set the
+ * Access-Control-Allow-Credentials header correctly in dev, so we
+ * intercept responses and add the missing header.
+ */
+async function fixCors(page: import('@playwright/test').Page) {
+  await page.route(`${API_URL}/**`, async (route) => {
+    const response = await page.request.fetch(route.request());
+    const headers = {
+      ...response.headers(),
+      'access-control-allow-credentials': 'true',
+    };
+    await route.fulfill({
+      status: response.status(),
+      headers,
+      body: await response.body(),
+    });
+  });
+}
+
+/** Authenticate by logging in through the UI with CORS bypass. */
 async function loginAsAdmin(page: import('@playwright/test').Page) {
+  await fixCors(page);
   await page.goto('/admin/login');
   await waitForHydration(page, 'form[aria-label="Login form"]');
   await page.locator('#email').fill(ADMIN_EMAIL);
   await page.locator('#password').fill(ADMIN_PASSWORD);
   await page.getByRole('button', { name: 'Sign in' }).click();
-  // Wait for redirect to admin dashboard
   await page.waitForURL('**/admin', { timeout: 10_000 });
 }
 
