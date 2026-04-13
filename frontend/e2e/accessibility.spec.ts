@@ -28,14 +28,36 @@ async function expectNoA11yViolations(
   expect(violations, 'Accessibility violations found').toEqual([]);
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin@sixbee.health';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'Ch4ngeMe!Now123';
+
+/**
+ * Wait for React hydration on a specific element.
+ * SSR renders the HTML but event handlers aren't attached until React
+ * hydrates. Interacting before hydration causes native form submissions.
+ * React attaches __reactFiber / __reactProps keys to hydrated DOM nodes.
+ */
+async function waitForHydration(
+  page: import('@playwright/test').Page,
+  selector: string,
+) {
+  await page.waitForFunction(
+    (sel: string) => {
+      const el = document.querySelector(sel);
+      return (
+        el !== null &&
+        Object.keys(el).some((k) => k.startsWith('__react'))
+      );
+    },
+    selector,
+    { timeout: 10_000 },
+  );
+}
 
 /** Authenticate by logging in through the UI. */
 async function loginAsAdmin(page: import('@playwright/test').Page) {
   await page.goto('/admin/login');
-  await page.waitForSelector('form[aria-label="Login form"]');
+  await waitForHydration(page, 'form[aria-label="Login form"]');
   await page.locator('#email').fill(ADMIN_EMAIL);
   await page.locator('#password').fill(ADMIN_PASSWORD);
   await page.getByRole('button', { name: 'Sign in' }).click();
@@ -60,7 +82,7 @@ test.describe('Accessibility: Public pages', () => {
     page,
   }) => {
     await page.goto('/');
-    await page.waitForSelector('form[aria-label="Book an appointment"]');
+    await waitForHydration(page, 'form[aria-label="Book an appointment"]');
     // Submit the empty form to trigger validation errors
     await page.getByRole('button', { name: 'Book appointment' }).click();
     // Wait for at least one error to appear
@@ -118,8 +140,7 @@ test.describe('Accessibility: Public pages', () => {
     page,
   }) => {
     await page.goto('/');
-    // Wait for React hydration before clicking to avoid native form submission
-    await page.waitForSelector('form[aria-label="Book an appointment"]');
+    await waitForHydration(page, 'form[aria-label="Book an appointment"]');
     await page.getByRole('button', { name: 'Book appointment' }).click();
 
     // Wait for field errors to render
@@ -160,7 +181,7 @@ test.describe('Accessibility: Admin pages', () => {
 
   test('Login page — validation errors are accessible', async ({ page }) => {
     await page.goto('/admin/login');
-    await page.waitForSelector('form[aria-label="Login form"]');
+    await waitForHydration(page, 'form[aria-label="Login form"]');
     await page.getByRole('button', { name: 'Sign in' }).click();
     await page.waitForSelector('[role="alert"], #email-error, #password-error');
     await expectNoA11yViolations(page);
