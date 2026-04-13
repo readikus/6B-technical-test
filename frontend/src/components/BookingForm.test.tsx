@@ -3,6 +3,37 @@ import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import BookingForm from './BookingForm';
 
+// Mock the custom DateTimePicker — it uses DOM APIs not available in JSDOM.
+// Real interaction is tested via Playwright E2E.
+vi.mock('./date-time-picker', () => ({
+  DateTimePicker: ({
+    id,
+    value,
+    onChange,
+    onBlur,
+    ...props
+  }: {
+    id?: string;
+    value: string;
+    onChange: (v: string) => void;
+    onBlur?: () => void;
+    'aria-invalid'?: boolean;
+    'aria-required'?: boolean;
+    'aria-describedby'?: string;
+  }) => (
+    <input
+      id={id}
+      type="datetime-local"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onBlur={onBlur}
+      aria-invalid={props['aria-invalid']}
+      aria-required={props['aria-required']}
+      aria-describedby={props['aria-describedby']}
+    />
+  ),
+}));
+
 function futureIso(): string {
   const d = new Date();
   d.setDate(d.getDate() + 7);

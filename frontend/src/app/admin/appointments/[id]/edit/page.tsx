@@ -3,11 +3,12 @@
 import { use, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { editBookingSchema, type EditBookingFormData } from '@/lib/schemas';
 import { getAppointment, updateAppointment } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
+import { DateTimePicker } from '@/components/date-time-picker';
 
 function toDatetimeLocal(iso: string): string {
   const d = new Date(iso);
@@ -39,6 +40,7 @@ export default function EditAppointmentPage({
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<EditBookingFormData>({
     resolver: zodResolver(editBookingSchema),
@@ -144,8 +146,21 @@ export default function EditAppointmentPage({
           <label htmlFor="date_time" className="mb-1 block text-sm font-medium text-gray-700">
             Date and time <span className="text-red-500">*</span>
           </label>
-          <input {...register('date_time')} id="date_time" type="datetime-local" className={inputCls(errors.date_time)} />
-          {errors.date_time && <p className="mt-1 text-sm text-red-600">{errors.date_time.message}</p>}
+          <Controller
+            name="date_time"
+            control={control}
+            render={({ field: { value, onChange, onBlur } }) => (
+              <DateTimePicker
+                id="date_time"
+                value={value}
+                onChange={onChange}
+                onBlur={onBlur}
+                aria-invalid={!!errors.date_time}
+                aria-describedby={errors.date_time ? 'date_time-error' : undefined}
+              />
+            )}
+          />
+          {errors.date_time && <p id="date_time-error" className="mt-1 text-sm text-red-600">{errors.date_time.message}</p>}
         </div>
 
         <div>

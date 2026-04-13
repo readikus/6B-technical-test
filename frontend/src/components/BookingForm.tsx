@@ -1,24 +1,33 @@
 'use client';
 
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useEffect, useRef, useState } from 'react';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { bookingSchema, type BookingFormData } from '../lib/schemas';
 import { createAppointment } from '../lib/api';
+import { DateTimePicker } from './date-time-picker';
 
 export default function BookingForm() {
   const [success, setSuccess] = useState(false);
   const [apiError, setApiError] = useState('');
 
+  const nameRef = useRef<HTMLInputElement>(null);
+
   const {
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<BookingFormData>({
     resolver: zodResolver(bookingSchema),
     mode: 'onTouched',
+    defaultValues: { date_time: '' },
   });
+
+  useEffect(() => {
+    nameRef.current?.focus();
+  }, []);
 
   async function onSubmit(data: BookingFormData) {
     setApiError('');
@@ -57,15 +66,23 @@ export default function BookingForm() {
       )}
 
       <Field label="Full name" name="name" error={errors.name?.message}>
-        {(a11y) => (
-          <input
-            {...register('name')}
-            {...a11y}
-            type="text"
-            className={inputCls(errors.name)}
-            placeholder="Jane Smith"
-          />
-        )}
+        {(a11y) => {
+          const { ref, ...rest } = register('name');
+          return (
+            <input
+              {...rest}
+              ref={(el) => {
+                ref(el);
+                (nameRef as React.MutableRefObject<HTMLInputElement | null>).current = el;
+              }}
+              {...a11y}
+              type="text"
+              className={inputCls(errors.name)}
+              placeholder="Jane Smith"
+              autoFocus
+            />
+          );
+        }}
       </Field>
 
       <Field label="Email address" name="email" error={errors.email?.message}>
@@ -94,11 +111,18 @@ export default function BookingForm() {
 
       <Field label="Preferred date and time" name="appointmentDate" error={errors.date_time?.message}>
         {(a11y) => (
-          <input
-            {...register('date_time')}
-            {...a11y}
-            type="datetime-local"
-            className={inputCls(errors.date_time)}
+          <Controller
+            name="date_time"
+            control={control}
+            render={({ field: { value, onChange, onBlur } }) => (
+              <DateTimePicker
+                {...a11y}
+                value={value}
+                onChange={onChange}
+                onBlur={onBlur}
+                aria-required={true}
+              />
+            )}
           />
         )}
       </Field>
