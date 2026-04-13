@@ -55,34 +55,11 @@ async function waitForHydration(
   );
 }
 
-// Cached admin JWT, reused by each test.
+// Cached admin JWT, reused across serial tests.
 let cachedAdminToken: string | null = null;
 
-/**
- * Proxy API requests through Playwright's Node.js context so the browser
- * bypasses CORS restrictions and the response includes the missing
- * Access-Control-Allow-Credentials header.
- */
-async function proxyApi(page: import('@playwright/test').Page) {
-  await page.route(`${API_URL}/**`, async (route) => {
-    const response = await page.request.fetch(route.request());
-    const headers = {
-      ...response.headers(),
-      'access-control-allow-credentials': 'true',
-    };
-    await route.fulfill({
-      status: response.status(),
-      headers,
-      body: await response.body(),
-    });
-  });
-}
-
-/** Login via API (cached), set up CORS proxy, and inject the session cookie. */
-async function loginAsAdmin(page: import('@playwright/test').Page) {
-  // Set up CORS proxy FIRST so all subsequent API calls work
-  await proxyApi(page);
-
+/** Navigate to the admin dashboard with a valid session. */
+async function gotoAdmin(page: import('@playwright/test').Page) {
   if (!cachedAdminToken) {
     for (let attempt = 0; attempt < 4; attempt++) {
       const res = await page.request.post(`${API_URL}/api/auth/login`, {
@@ -92,20 +69,21 @@ async function loginAsAdmin(page: import('@playwright/test').Page) {
         await new Promise((r) => setTimeout(r, 20_000));
         continue;
       }
-      const setCookie = res.headers()['set-cookie'] ?? '';
-      const match = setCookie.match(/admin_token=([^;]+)/);
-      if (match) {
-        cachedAdminToken = match[1];
-        break;
-      }
+      const sc = res.headers()['set-cookie'] ?? '';
+      const match = sc.match(/admin_token=([^;]+)/);
+      if (match) { cachedAdminToken = match[1]; break; }
     }
   }
-  if (!cachedAdminToken) {
-    throw new Error('Failed to obtain admin token');
-  }
+  if (!cachedAdminToken) throw new Error('Failed to obtain admin token');
+
+  // Clear any server-set httpOnly/SameSite=Strict cookie and replace
+  // with a permissive one the browser will send cross-port.
+  await page.context().clearCookies();
   await page.context().addCookies([
     { name: 'admin_token', value: cachedAdminToken, domain: 'localhost', path: '/' },
   ]);
+  await page.goto('/admin');
+  await page.waitForSelector('[role="tablist"]', { timeout: 15_000 });
 }
 
 // ---------------------------------------------------------------------------
@@ -260,9 +238,7 @@ test.describe('Accessibility: Admin pages', () => {
   test('Admin dashboard: no violations, filter tabs accessible, keyboard navigation', async ({
     page,
   }) => {
-    await loginAsAdmin(page);
-    await page.goto('/admin');
-    await page.waitForSelector('[role="tablist"]');
+    await gotoAdmin(page);
 
     // No WCAG violations
     await expectNoA11yViolations(page);
@@ -290,9 +266,7 @@ test.describe('Accessibility: Admin pages', () => {
   });
 
   test('Edit appointment page has no violations', async ({ page }) => {
-    await loginAsAdmin(page);
-    await page.goto('/admin');
-    await page.waitForSelector('[role="tablist"]');
+    await gotoAdmin(page);
 
     // Navigate to the first appointment's edit page (if any exist)
     const editLink = page.locator('a[aria-label^="Edit appointment"]').first();
@@ -304,9 +278,7 @@ test.describe('Accessibility: Admin pages', () => {
   });
 
   test('Appointment detail page has no violations', async ({ page }) => {
-    await loginAsAdmin(page);
-    await page.goto('/admin');
-    await page.waitForSelector('[role="tablist"]');
+    await gotoAdmin(page);
 
     // Click the first appointment row (skip if table is empty)
     const editLink = page.locator('a[aria-label^="Edit appointment"]').first();

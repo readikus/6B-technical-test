@@ -5,7 +5,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: 1,
   reporter: 'html',
   use: {
     baseURL: process.env.BASE_URL ?? 'http://localhost:3000',
@@ -14,7 +14,15 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        // Disable CORS so the browser can send session cookies to the API
+        // on a different port. Required until the backend's CORS config
+        // includes Access-Control-Allow-Credentials on preflight responses.
+        launchOptions: {
+          args: ['--disable-web-security', '--disable-features=IsolateOrigins,site-per-process'],
+        },
+      },
     },
   ],
   webServer: {
