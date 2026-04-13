@@ -55,12 +55,15 @@ async function waitForHydration(
   );
 }
 
+// Cached admin JWT, reused by each test.
+let cachedAdminToken: string | null = null;
+
 /**
- * Fix CORS for API requests. The backend may not set the
- * Access-Control-Allow-Credentials header correctly in dev, so we
- * intercept responses and add the missing header.
+ * Proxy API requests through Playwright's Node.js context so the browser
+ * bypasses CORS restrictions and the response includes the missing
+ * Access-Control-Allow-Credentials header.
  */
-async function fixCors(page: import('@playwright/test').Page) {
+async function proxyApi(page: import('@playwright/test').Page) {
   await page.route(`${API_URL}/**`, async (route) => {
     const response = await page.request.fetch(route.request());
     const headers = {
@@ -75,15 +78,34 @@ async function fixCors(page: import('@playwright/test').Page) {
   });
 }
 
-/** Authenticate by logging in through the UI with CORS bypass. */
+/** Login via API (cached), set up CORS proxy, and inject the session cookie. */
 async function loginAsAdmin(page: import('@playwright/test').Page) {
-  await fixCors(page);
-  await page.goto('/admin/login');
-  await waitForHydration(page, 'form[aria-label="Login form"]');
-  await page.locator('#email').fill(ADMIN_EMAIL);
-  await page.locator('#password').fill(ADMIN_PASSWORD);
-  await page.getByRole('button', { name: 'Sign in' }).click();
-  await page.waitForURL('**/admin', { timeout: 10_000 });
+  // Set up CORS proxy FIRST so all subsequent API calls work
+  await proxyApi(page);
+
+  if (!cachedAdminToken) {
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const res = await page.request.post(`${API_URL}/api/auth/login`, {
+        data: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD },
+      });
+      if (res.status() === 429) {
+        await new Promise((r) => setTimeout(r, 20_000));
+        continue;
+      }
+      const setCookie = res.headers()['set-cookie'] ?? '';
+      const match = setCookie.match(/admin_token=([^;]+)/);
+      if (match) {
+        cachedAdminToken = match[1];
+        break;
+      }
+    }
+  }
+  if (!cachedAdminToken) {
+    throw new Error('Failed to obtain admin token');
+  }
+  await page.context().addCookies([
+    { name: 'admin_token', value: cachedAdminToken, domain: 'localhost', path: '/' },
+  ]);
 }
 
 // ---------------------------------------------------------------------------
@@ -194,6 +216,9 @@ test.describe('Accessibility: Public pages', () => {
 // ---------------------------------------------------------------------------
 
 test.describe('Accessibility: Admin pages', () => {
+  // Run serially so tests share a single cached login token.
+  // Extra timeout accommodates rate-limit retry waits.
+  test.describe.configure({ mode: 'serial', timeout: 90_000 });
   test('Login page (/admin/login) has no violations', async ({ page }) => {
     await page.goto('/admin/login');
     await page.waitForSelector('form[aria-label="Login form"]');
@@ -232,32 +257,42 @@ test.describe('Accessibility: Admin pages', () => {
     await page.waitForSelector('[role="alert"], #email-error, #password-error');
   });
 
-  test('Appointments table (/admin) has no violations', async ({ page }) => {
-    await loginAsAdmin(page);
-    await page.goto('/admin');
-    await page.waitForSelector('table');
-    await expectNoA11yViolations(page);
-  });
-
-  test('Appointments table — filter tabs are accessible', async ({
+  test('Admin dashboard: no violations, filter tabs accessible, keyboard navigation', async ({
     page,
   }) => {
     await loginAsAdmin(page);
     await page.goto('/admin');
     await page.waitForSelector('[role="tablist"]');
 
-    // Verify tab semantics
+    // No WCAG violations
+    await expectNoA11yViolations(page);
+
+    // Filter tabs use correct ARIA semantics
     const tabs = page.locator('[role="tab"]');
     await expect(tabs).toHaveCount(4);
     await expect(tabs.first()).toHaveAttribute('aria-selected', 'true');
 
-    await expectNoA11yViolations(page);
+    // Keyboard navigation through filter tabs
+    const firstTab = tabs.first();
+    await firstTab.focus();
+    await expect(firstTab).toBeFocused();
+
+    await page.keyboard.press('Tab');
+    await expect(tabs.nth(1)).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(tabs.nth(2)).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(tabs.nth(3)).toBeFocused();
+
+    // Activate a tab with Enter
+    await page.keyboard.press('Enter');
+    await expect(tabs.nth(3)).toHaveAttribute('aria-selected', 'true');
   });
 
   test('Edit appointment page has no violations', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/admin');
-    await page.waitForSelector('table');
+    await page.waitForSelector('[role="tablist"]');
 
     // Navigate to the first appointment's edit page (if any exist)
     const editLink = page.locator('a[aria-label^="Edit appointment"]').first();
@@ -268,44 +303,16 @@ test.describe('Accessibility: Admin pages', () => {
     }
   });
 
-  test('Appointments table — keyboard navigation through filter tabs', async ({
-    page,
-  }) => {
+  test('Appointment detail page has no violations', async ({ page }) => {
     await loginAsAdmin(page);
     await page.goto('/admin');
     await page.waitForSelector('[role="tablist"]');
 
-    // Tab into the first filter tab
-    const firstTab = page.locator('[role="tab"]').first();
-    await firstTab.focus();
-    await expect(firstTab).toBeFocused();
-
-    // Tab through remaining tabs
-    await page.keyboard.press('Tab');
-    await expect(page.locator('[role="tab"]').nth(1)).toBeFocused();
-    await page.keyboard.press('Tab');
-    await expect(page.locator('[role="tab"]').nth(2)).toBeFocused();
-    await page.keyboard.press('Tab');
-    await expect(page.locator('[role="tab"]').nth(3)).toBeFocused();
-
-    // Activate a tab with Enter
-    await page.keyboard.press('Enter');
-    await expect(page.locator('[role="tab"]').nth(3)).toHaveAttribute(
-      'aria-selected',
-      'true',
-    );
-  });
-
-  test('Appointment detail page has no violations', async ({ page }) => {
-    await loginAsAdmin(page);
-    await page.goto('/admin');
-    await page.waitForSelector('table');
-
     // Click the first appointment row (skip if table is empty)
-    const firstRow = page.locator('tbody tr').first();
-    if (await firstRow.locator('a').first().count() > 0) {
-      await firstRow.click();
-      await page.waitForSelector('h2:text("Audit Log")');
+    const editLink = page.locator('a[aria-label^="Edit appointment"]').first();
+    if (await editLink.isVisible()) {
+      await editLink.click();
+      await page.waitForURL('**/admin/appointments/**');
       await expectNoA11yViolations(page);
     }
   });
