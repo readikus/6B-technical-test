@@ -32,16 +32,15 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin@sixbee.health';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'Ch4ngeMe!Now123';
 
-/** Authenticate via the API and set the token in localStorage. */
+/** Authenticate by logging in through the UI. */
 async function loginAsAdmin(page: import('@playwright/test').Page) {
-  const res = await page.request.post(`${API_URL}/api/auth/login`, {
-    data: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD },
-  });
-  const body = (await res.json()) as { access_token: string };
-
-  await page.addInitScript((token: string) => {
-    localStorage.setItem('admin_token', token);
-  }, body.access_token);
+  await page.goto('/admin/login');
+  await page.waitForSelector('form[aria-label="Login form"]');
+  await page.locator('#email').fill(ADMIN_EMAIL);
+  await page.locator('#password').fill(ADMIN_PASSWORD);
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  // Wait for redirect to admin dashboard
+  await page.waitForURL('**/admin', { timeout: 10_000 });
 }
 
 // ---------------------------------------------------------------------------
@@ -61,6 +60,7 @@ test.describe('Accessibility: Public pages', () => {
     page,
   }) => {
     await page.goto('/');
+    await page.waitForSelector('form[aria-label="Book an appointment"]');
     // Submit the empty form to trigger validation errors
     await page.getByRole('button', { name: 'Book appointment' }).click();
     // Wait for at least one error to appear
@@ -118,6 +118,8 @@ test.describe('Accessibility: Public pages', () => {
     page,
   }) => {
     await page.goto('/');
+    // Wait for React hydration before clicking to avoid native form submission
+    await page.waitForSelector('form[aria-label="Book an appointment"]');
     await page.getByRole('button', { name: 'Book appointment' }).click();
 
     // Wait for field errors to render
@@ -158,6 +160,7 @@ test.describe('Accessibility: Admin pages', () => {
 
   test('Login page — validation errors are accessible', async ({ page }) => {
     await page.goto('/admin/login');
+    await page.waitForSelector('form[aria-label="Login form"]');
     await page.getByRole('button', { name: 'Sign in' }).click();
     await page.waitForSelector('[role="alert"], #email-error, #password-error');
     await expectNoA11yViolations(page);
