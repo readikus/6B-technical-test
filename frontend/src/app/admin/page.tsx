@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from '@/lib/auth-context';
 import {
@@ -12,14 +12,65 @@ import {
   type ApiAppointment,
 } from '@/lib/api';
 import { AppointmentsTable } from '@/components/appointments-table';
+import { cn } from '@/lib/utils';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+const FILTER_KEY = 'admin_filter_tab';
+
+const tabs = ['all', 'unconfirmed', 'today', 'past'] as const;
+type FilterTab = (typeof tabs)[number];
+
+const tabLabels: Record<FilterTab, string> = {
+  all: 'All',
+  unconfirmed: 'Unconfirmed',
+  today: "Today's",
+  past: 'Past',
+};
+
+function isToday(date: Date): boolean {
+  const now = new Date();
+  return (
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate()
+  );
+}
+
+function filterAppointments(
+  appointments: ApiAppointment[],
+  tab: FilterTab,
+): ApiAppointment[] {
+  const now = new Date();
+  switch (tab) {
+    case 'unconfirmed':
+      return appointments.filter((a) => a.status === 'pending');
+    case 'today':
+      return appointments.filter((a) => isToday(new Date(a.date_time)));
+    case 'past':
+      return appointments.filter((a) => new Date(a.date_time) < now);
+    default:
+      return appointments;
+  }
+}
+
+function readStoredTab(): FilterTab {
+  if (typeof window === 'undefined') return 'all';
+  const stored = localStorage.getItem(FILTER_KEY);
+  return tabs.includes(stored as FilterTab) ? (stored as FilterTab) : 'all';
+}
 
 export default function AdminDashboardPage() {
   const { logout } = useAuth();
   const [appointments, setAppointments] = useState<ApiAppointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<FilterTab>(readStoredTab);
+
+  const selectTab = (tab: FilterTab) => {
+    setActiveTab(tab);
+    localStorage.setItem(FILTER_KEY, tab);
+  };
 
   const loadAppointments = useCallback(async () => {
     try {
@@ -103,6 +154,11 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const filtered = useMemo(
+    () => filterAppointments(appointments, activeTab),
+    [appointments, activeTab],
+  );
+
   if (loading) {
     return <p className="py-8 text-center text-gray-500">Loading…</p>;
   }
@@ -120,8 +176,32 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
+      <div
+        className="mb-4 flex gap-1 rounded-lg bg-gray-100 p-1"
+        role="tablist"
+        aria-label="Filter appointments"
+      >
+        {tabs.map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab}
+            className={cn(
+              'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+              activeTab === tab
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900',
+            )}
+            onClick={() => selectTab(tab)}
+          >
+            {tabLabels[tab]}
+          </button>
+        ))}
+      </div>
+
       <AppointmentsTable
-        appointments={appointments}
+        appointments={filtered}
         onApprove={handleApprove}
         onDelete={handleDelete}
       />

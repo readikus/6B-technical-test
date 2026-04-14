@@ -19,12 +19,14 @@ async function bootstrap() {
   // every fetch directive to same-origin. The API only serves JSON, so
   // a tight CSP costs nothing and gives defence-in-depth against
   // reflected XSS.
-  app.use(helmet(helmetConfig));
-  app.use(cookieParser());
+  // CORS must be enabled before Helmet so preflight (OPTIONS) responses
+  // include Access-Control-Allow-Credentials before Helmet headers are set.
   app.enableCors({
     origin: (process.env.CORS_ORIGIN || 'http://localhost:3000').split(','),
     credentials: true,
   });
+  app.use(helmet(helmetConfig));
+  app.use(cookieParser());
 
   // Swagger UI is exposed only in non-production environments to avoid
   // leaking the API schema and example payloads to attackers.

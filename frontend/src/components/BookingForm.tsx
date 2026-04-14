@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { bookingSchema, type BookingFormData } from '../lib/schemas';
 import { createAppointment } from '../lib/api';
+import { DateTimePicker } from './date-time-picker';
 
 export default function BookingForm() {
   const [success, setSuccess] = useState(false);
@@ -14,10 +15,12 @@ export default function BookingForm() {
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<BookingFormData>({
     resolver: zodResolver(bookingSchema),
     mode: 'onTouched',
+    defaultValues: { name: '', email: '', phone: '', description: '', date_time: '' },
   });
 
   async function onSubmit(data: BookingFormData) {
@@ -94,11 +97,18 @@ export default function BookingForm() {
 
       <Field label="Preferred date and time" name="appointmentDate" error={errors.date_time?.message}>
         {(a11y) => (
-          <input
-            {...register('date_time')}
-            {...a11y}
-            type="datetime-local"
-            className={inputCls(errors.date_time)}
+          <Controller
+            name="date_time"
+            control={control}
+            render={({ field: { value, onChange, onBlur } }) => (
+              <DateTimePicker
+                {...a11y}
+                value={value}
+                onChange={onChange}
+                onBlur={onBlur}
+                aria-required={true}
+              />
+            )}
           />
         )}
       </Field>
