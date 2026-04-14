@@ -25,16 +25,11 @@ public class AdminSeedService : IHostedService
         using var scope = _serviceProvider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<HealthTechDbContext>();
 
-        // Apply pending migrations (skip for InMemory provider used in tests)
-        var isRelational = db.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory";
-        if (isRelational)
-        {
-            await db.Database.MigrateAsync(cancellationToken);
-        }
-        else
-        {
-            await db.Database.EnsureCreatedAsync(cancellationToken);
-        }
+        // Create tables from the EF Core model if they don't already exist.
+        // Uses EnsureCreated which works without pre-generated migration files.
+        // Once migrations are added (dotnet ef migrations add Initial), switch
+        // the relational path back to MigrateAsync.
+        await db.Database.EnsureCreatedAsync(cancellationToken);
 
         var email = _configuration["Admin:Email"] ?? "admin@sixbee.health";
         var password = _configuration["Admin:Password"] ?? "changeme";

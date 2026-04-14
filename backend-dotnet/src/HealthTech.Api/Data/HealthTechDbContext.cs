@@ -16,12 +16,11 @@ public class HealthTechDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.HasPostgresExtension("uuid-ossp");
-
+        // gen_random_uuid() is built into Postgres 13+ — no extension needed
         modelBuilder.Entity<Appointment>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).HasDefaultValueSql("uuid_generate_v4()");
+            entity.Property(e => e.Id).HasDefaultValueSql("gen_random_uuid()");
             entity.Property(e => e.Status).HasDefaultValue("pending");
             entity.Property(e => e.Metadata).HasDefaultValue("{}");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
@@ -31,7 +30,7 @@ public class HealthTechDbContext : DbContext
         modelBuilder.Entity<AdminUser>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).HasDefaultValueSql("uuid_generate_v4()");
+            entity.Property(e => e.Id).HasDefaultValueSql("gen_random_uuid()");
             entity.HasIndex(e => e.Email).IsUnique();
             entity.Property(e => e.IsActive).HasDefaultValue(true);
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
@@ -41,7 +40,7 @@ public class HealthTechDbContext : DbContext
         modelBuilder.Entity<AuditLog>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).HasDefaultValueSql("uuid_generate_v4()");
+            entity.Property(e => e.Id).HasDefaultValueSql("gen_random_uuid()");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("now()");
 
             entity.HasOne(e => e.Appointment)
