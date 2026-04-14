@@ -45,3 +45,6 @@ bld/
 ## Test Results
 [Tt]est[Rr]esult*/
 TestResults/
+
+# Node (Tailwind CSS build)
+node_modules/
