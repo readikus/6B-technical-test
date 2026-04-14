@@ -8,15 +8,10 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-// HttpClient with cookie credentials — same origin, so cookies flow automatically
-builder.Services.AddScoped(sp =>
+// HttpClient that includes credentials (cookies) on every browser fetch request
+builder.Services.AddScoped(sp => new HttpClient(new CookieHandler())
 {
-    var handler = new HttpClientHandler();
-    var client = new HttpClient(handler)
-    {
-        BaseAddress = new Uri(builder.HostEnvironment.BaseAddress)
-    };
-    return client;
+    BaseAddress = new Uri(builder.HostEnvironment.BaseAddress)
 });
 
 builder.Services.AddScoped<ApiClient>();
