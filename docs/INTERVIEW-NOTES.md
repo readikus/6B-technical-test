@@ -184,11 +184,46 @@ Deploy new revision → health check → swap traffic → old revision stays war
 
 ---
 
-## 11. Questions to Ask Them
+## 11. How the Build Maps to the Job Spec
 
+The job ad asks for specific technologies and responsibilities. Here's where each one is demonstrated:
+
+| Job Requirement | Where It's Demonstrated |
+|----------------|------------------------|
+| C#, ASP.NET Core (6+) | .NET 10 backend — Controllers, Services, Middleware, DI pipeline |
+| SignalR | `AppointmentHub.cs` — real-time notifications, cookie auth on connection |
+| Blazor | Full Blazor WASM frontend — pages, components, MVVM, auth state |
+| Software architecture & design patterns | MVVM (Blazor), Repository (EF Core), Observer (audit logging), MVC (API) |
+| RESTful APIs | Full CRUD matching NestJS API contract, snake_case JSON, proper HTTP status codes |
+| Testing frameworks (xUnit, bUnit) | 26 tests — xUnit for services/integration, bUnit for Blazor components, AAA pattern |
+| Security & compliance | AES-256-GCM encryption, httpOnly JWT, rate limiting, audit logging, security headers |
+| Azure DevOps and services | Deployment architecture documented with Mermaid diagrams — Container Apps, Key Vault, Private Endpoints |
+| Solution documentation | ARCHITECTURE.md, PLAN.md, AZURE-DEPLOYMENT.md with ERDs and data flows |
+| Code quality tools | ESLint, TypeScript strict mode, FluentValidation, CI pipeline with audit |
+| Version control (GitHub) | Feature branches, detailed commits, PRs, GitHub Actions CI |
+| Leading complex development | Three interchangeable backends sharing one API contract and database |
+
+**Things to emphasise for Principal-level:**
+- The assignment doesn't just show coding — it shows *decision-making*: why encryption first, why this architecture, why these trade-offs
+- Three implementations demonstrate the ability to guide a team across different stacks
+- Documentation (ARCHITECTURE.md, PLAN.md, deployment diagrams) shows you communicate technical decisions, not just make them
+- FHIR R4 shows domain awareness — understanding the healthcare ecosystem, not just building in isolation
+
+---
+
+## 12. Questions to Ask Them
+
+**Engineering culture:**
+- How do you approach knowledge sharing across the team? Do you have guilds, communities of practice, or anything similar? I'm keen on setting up cross-discipline learning — for example, giving PHP developers a path into frontend, or backend engineers exposure to cloud architecture. I've seen it work well for retention and building T-shaped engineers
+- What does the code review process look like? Is it formal PRs or more collaborative?
+- How do you approach technical debt — is there dedicated time, or is it woven into feature work?
+
+**Technical:**
 - What does your deployment pipeline look like? Blue-green, rolling, or something else?
-- How do you handle PII and data compliance across your healthcare clients?
-- What's the team structure — full-stack or specialist roles?
-- Is .NET in the current stack, or is it predominantly one technology?
-- How do you approach technical debt?
-- What does the code review process look like?
+- How do you handle PII and data compliance across your healthcare and energy clients?
+- Is .NET the primary stack, or do teams work across multiple technologies?
+
+**Team & role:**
+- What's the team structure — full-stack or specialist roles? How big are the squads?
+- For the Principal role, how much is hands-on coding versus architecture/mentoring?
+- What does success look like in the first 6 months?
