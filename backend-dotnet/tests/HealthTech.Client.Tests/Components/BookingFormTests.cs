@@ -17,6 +17,7 @@ public class BookingFormTests : TestContext
     {
         _apiMock = new Mock<ApiClient>(Mock.Of<HttpClient>());
         Services.AddSingleton(_apiMock.Object);
+        JSInterop.Mode = JSRuntimeMode.Loose; // DateTimePicker uses IJSRuntime
     }
 
     [Fact]

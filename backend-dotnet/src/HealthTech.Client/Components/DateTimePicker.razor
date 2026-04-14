@@ -1,14 +1,140 @@
-<div class="datetime-picker">
-    <input id="@Id"
-           type="datetime-local"
-           class="form-input @(HasError ? "error" : "")"
-           value="@_inputValue"
-           @onchange="HandleChange"
-           min="@_minValue"
-           aria-required="true"
-           aria-describedby="@ErrorId"
-           aria-invalid="@HasError"
-           aria-label="Select appointment date and time" />
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<div @ref="_containerRef" class="relative">
+    @* Input with calendar icon *@
+    <div class="@InputWrapperClass()">
+        <input @ref="_inputRef"
+               id="@Id"
+               type="text"
+               role="combobox"
+               value="@DisplayValue"
+               placeholder="DD/MM/YYYY HH:MM"
+               class="h-9 flex-1 bg-transparent px-3 py-2 text-sm outline-none placeholder:text-gray-400"
+               @onfocus="Open"
+               @onclick="Open"
+               @oninput="OnTyped"
+               @onblur="OnBlur"
+               @onkeydown="OnKeyDown"
+               aria-required="true"
+               aria-invalid="@HasError"
+               aria-describedby="@ErrorId"
+               aria-haspopup="dialog"
+               aria-expanded="@_open"
+               aria-controls="@(_open ? _dialogId : null)"
+               aria-autocomplete="none" />
+        <button type="button"
+                tabindex="-1"
+                class="inline-flex w-9 h-9 items-center justify-center text-gray-400 hover:text-gray-600"
+                @onclick="Toggle"
+                @onclick:preventDefault
+                aria-label="Open date picker">
+            @* Calendar SVG icon *@
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+        </button>
+    </div>
+
+    @* Calendar dropdown *@
+    @if (_open)
+    {
+        <div id="@_dialogId"
+             role="dialog"
+             aria-modal="false"
+             aria-label="Choose date and time"
+             class="absolute left-0 top-full z-50 mt-1 w-72 rounded-lg border border-gray-200 bg-white p-4 shadow-md">
+
+            @* Month navigation *@
+            <div class="mb-3 flex items-center justify-between">
+                <button type="button"
+                        @onclick="PrevMonth"
+                        @onclick:preventDefault
+                        disabled="@IsPrevMonthDisabled()"
+                        class="inline-flex w-8 h-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:pointer-events-none"
+                        aria-label="Previous month">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <polyline points="15 18 9 12 15 6" />
+                    </svg>
+                </button>
+                <span class="text-sm font-semibold text-gray-900">
+                    @Months[_viewMonth] @_viewYear
+                </span>
+                <button type="button"
+                        @onclick="NextMonth"
+                        @onclick:preventDefault
+                        class="inline-flex w-8 h-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100"
+                        aria-label="Next month">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                </button>
+            </div>
+
+            @* Day-of-week headers *@
+            <div class="mb-1 grid grid-cols-7 text-center">
+                @foreach (var day in DayHeaders)
+                {
+                    <span class="pb-1 text-xs font-medium text-gray-400">@day</span>
+                }
+            </div>
+
+            @* Day grid *@
+            <div class="grid grid-cols-7 text-center" role="grid" aria-label="@($"{Months[_viewMonth]} {_viewYear}")">
+                @for (var i = 0; i < StartDayOfWeek(); i++)
+                {
+                    <span></span>
+                }
+                @for (var d = 1; d <= DaysInViewMonth(); d++)
+                {
+                    var day = d;
+                    var isSelected = IsSelected(day);
+                    var isToday = IsToday(day);
+                    var isPast = IsPast(day);
+
+                    <button type="button"
+                            role="gridcell"
+                            aria-selected="@isSelected"
+                            aria-disabled="@isPast"
+                            disabled="@isPast"
+                            @onclick="() => SelectDay(day)"
+                            @onclick:preventDefault
+                            class="@DayCellClass(isSelected, isToday, isPast)">
+                        @day
+                    </button>
+                }
+            </div>
+
+            @* Time picker *@
+            <div class="mt-3 flex items-center gap-2 border-t border-gray-200 pt-3">
+                <span class="text-xs text-gray-500">Time</span>
+                <select value="@_hour"
+                        @onchange="OnHourChange"
+                        class="h-7 rounded-md border border-gray-300 bg-transparent px-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                        aria-label="Hour">
+                    @for (var h = 0; h < 24; h++)
+                    {
+                        var hh = h.ToString("D2");
+                        <option value="@hh" selected="@(hh == _hour)">@hh</option>
+                    }
+                </select>
+                <span class="text-sm font-medium text-gray-900">:</span>
+                <select value="@_minute"
+                        @onchange="OnMinuteChange"
+                        class="h-7 rounded-md border border-gray-300 bg-transparent px-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+                        aria-label="Minute">
+                    @for (var m = 0; m < 60; m += 5)
+                    {
+                        var mm = m.ToString("D2");
+                        <option value="@mm" selected="@(mm == _minute)">@mm</option>
+                    }
+                </select>
+            </div>
+        </div>
+    }
 </div>
 
 @code {
@@ -18,14 +144,237 @@
     [Parameter] public bool HasError { get; set; }
     [Parameter] public string? ErrorId { get; set; }
 
-    private string _inputValue => Value.ToString("yyyy-MM-ddTHH:mm");
-    private string _minValue => DateTime.Now.ToString("yyyy-MM-ddTHH:mm");
+    private bool _open;
+    private int _viewYear;
+    private int _viewMonth;
+    private string _hour = "09";
+    private string _minute = "00";
+    private string? _typedText;
+    private readonly string _dialogId = $"dtp-{Guid.NewGuid():N}";
+    private ElementReference _containerRef;
+    private ElementReference _inputRef;
+    private DotNetObjectReference<DateTimePicker>? _dotNetRef;
 
-    private async Task HandleChange(ChangeEventArgs e)
+    private const string DateTimePattern = "^(\\d{2})/(\\d{2})/(\\d{4})\\s+(\\d{2}):(\\d{2})$";
+
+    private const string ClickOutsideJs =
+        "window.__dtpOutsideHandlers = window.__dtpOutsideHandlers || new Map();" +
+        "window.__dtpRegisterOutside = (dotNetRef, el) => {" +
+        "  if (window.__dtpOutsideHandlers.has(el)) return;" +
+        "  const handler = (e) => { if (el && !el.contains(e.target)) dotNetRef.invokeMethodAsync('CloseFromJs'); };" +
+        "  document.addEventListener('mousedown', handler);" +
+        "  window.__dtpOutsideHandlers.set(el, handler);" +
+        "};" +
+        "window.__dtpUnregisterOutside = (el) => {" +
+        "  const handler = window.__dtpOutsideHandlers.get(el);" +
+        "  if (handler) { document.removeEventListener('mousedown', handler); window.__dtpOutsideHandlers.delete(el); }" +
+        "};";
+
+    private static readonly string[] DayHeaders = { "Mo", "Tu", "We", "Th", "Fr", "Sa", "Su" };
+    private static readonly string[] Months = {
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    };
+
+    protected override void OnInitialized()
     {
-        if (DateTime.TryParse(e.Value?.ToString(), out var parsed))
+        var dt = Value != default ? Value : DateTime.Now.AddDays(1).Date.AddHours(9);
+        _viewYear = dt.Year;
+        _viewMonth = dt.Month - 1; // 0-indexed to match JS
+        _hour = dt.Hour.ToString("D2");
+        _minute = (dt.Minute / 5 * 5).ToString("D2"); // Snap to nearest 5 min
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
         {
-            await ValueChanged.InvokeAsync(parsed);
+            _dotNetRef = DotNetObjectReference.Create(this);
+            // Register click-outside handler via JS interop
+            await JS.InvokeVoidAsync("eval", ClickOutsideJs);
+        }
+    }
+
+    private async Task Open()
+    {
+        if (!_open)
+        {
+            _open = true;
+            StateHasChanged();
+            await Task.Yield();
+            if (_dotNetRef is not null)
+            {
+                await JS.InvokeVoidAsync("window.__dtpRegisterOutside", _dotNetRef, _containerRef);
+            }
+        }
+    }
+
+    private async Task Toggle()
+    {
+        if (_open) Close();
+        else await Open();
+    }
+
+    private void Close()
+    {
+        _open = false;
+        _typedText = null;
+    }
+
+    [JSInvokable]
+    public void CloseFromJs()
+    {
+        Close();
+        InvokeAsync(StateHasChanged);
+    }
+
+    // --- Display ---
+
+    private string DisplayValue
+    {
+        get
+        {
+            if (_typedText is not null) return _typedText;
+            if (Value == default) return "";
+            return $"{Value.Day:D2}/{Value.Month:D2}/{Value.Year} {_hour}:{_minute}";
+        }
+    }
+
+    private string InputWrapperClass()
+    {
+        var border = HasError ? "border-red-300" : "border-gray-300";
+        return $"flex items-center rounded-md border bg-transparent text-sm transition-colors focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500 {border}";
+    }
+
+    // --- Calendar helpers ---
+
+    private int DaysInViewMonth() => DateTime.DaysInMonth(_viewYear, _viewMonth + 1);
+
+    private int StartDayOfWeek()
+    {
+        var dow = new DateTime(_viewYear, _viewMonth + 1, 1).DayOfWeek;
+        return dow == DayOfWeek.Sunday ? 6 : (int)dow - 1; // Monday = 0
+    }
+
+    private string CellDateStr(int day) =>
+        $"{_viewYear}-{(_viewMonth + 1):D2}-{day:D2}";
+
+    private string TodayStr()
+    {
+        var now = DateTime.Now;
+        return $"{now.Year}-{now.Month:D2}-{now.Day:D2}";
+    }
+
+    private string SelectedStr() =>
+        Value != default ? $"{Value.Year}-{Value.Month:D2}-{Value.Day:D2}" : "";
+
+    private bool IsSelected(int day) => CellDateStr(day) == SelectedStr();
+    private bool IsToday(int day) => CellDateStr(day) == TodayStr();
+    private bool IsPast(int day) =>
+        string.Compare(CellDateStr(day), TodayStr(), StringComparison.Ordinal) < 0;
+
+    private bool IsPrevMonthDisabled()
+    {
+        var now = DateTime.Now;
+        return _viewYear == now.Year && _viewMonth <= now.Month - 1;
+    }
+
+    private static string DayCellClass(bool selected, bool today, bool past)
+    {
+        var b = "flex w-8 h-8 items-center justify-center rounded-md text-sm outline-none transition-colors hover:bg-blue-50 focus-visible:ring-2 focus-visible:ring-blue-500";
+        if (selected) b += " bg-blue-600 text-white hover:bg-blue-700";
+        if (today && !selected) b += " border border-gray-300";
+        if (past) b += " text-gray-300 pointer-events-none";
+        return b;
+    }
+
+    // --- Actions ---
+
+    private async Task SelectDay(int day)
+    {
+        var dt = new DateTime(_viewYear, _viewMonth + 1, day,
+            int.Parse(_hour), int.Parse(_minute), 0);
+        await ValueChanged.InvokeAsync(dt);
+    }
+
+    private async Task OnHourChange(ChangeEventArgs e)
+    {
+        _hour = e.Value?.ToString() ?? "09";
+        if (Value != default)
+        {
+            var dt = new DateTime(Value.Year, Value.Month, Value.Day,
+                int.Parse(_hour), int.Parse(_minute), 0);
+            await ValueChanged.InvokeAsync(dt);
+        }
+    }
+
+    private async Task OnMinuteChange(ChangeEventArgs e)
+    {
+        _minute = e.Value?.ToString() ?? "00";
+        if (Value != default)
+        {
+            var dt = new DateTime(Value.Year, Value.Month, Value.Day,
+                int.Parse(_hour), int.Parse(_minute), 0);
+            await ValueChanged.InvokeAsync(dt);
+        }
+    }
+
+    private void PrevMonth()
+    {
+        if (_viewMonth == 0) { _viewMonth = 11; _viewYear--; }
+        else _viewMonth--;
+    }
+
+    private void NextMonth()
+    {
+        if (_viewMonth == 11) { _viewMonth = 0; _viewYear++; }
+        else _viewMonth++;
+    }
+
+    // --- Typed input parsing (DD/MM/YYYY HH:MM) ---
+
+    private async Task OnTyped(ChangeEventArgs e)
+    {
+        var val = e.Value?.ToString() ?? "";
+        _typedText = val;
+
+        if (System.Text.RegularExpressions.Regex.IsMatch(val, DateTimePattern))
+        {
+            var parts = val.Split('/', ' ', ':');
+            if (parts.Length >= 5 &&
+                int.TryParse(parts[0], out var dd) &&
+                int.TryParse(parts[1], out var mm) &&
+                int.TryParse(parts[2], out var yyyy) &&
+                int.TryParse(parts[3], out var hh) &&
+                int.TryParse(parts[4], out var min))
+            {
+                _hour = hh.ToString("D2");
+                _minute = min.ToString("D2");
+                _viewYear = yyyy;
+                _viewMonth = mm - 1;
+                await ValueChanged.InvokeAsync(new DateTime(yyyy, mm, dd, hh, min, 0));
+                _typedText = null;
+            }
+        }
+    }
+
+    private void OnBlur(FocusEventArgs e)
+    {
+        _typedText = null;
+    }
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape") Close();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_dotNetRef is not null)
+        {
+            try { await JS.InvokeVoidAsync("window.__dtpUnregisterOutside", _containerRef); }
+            catch (JSDisconnectedException) { } // Circuit may be gone
+            _dotNetRef.Dispose();
         }
     }
 }

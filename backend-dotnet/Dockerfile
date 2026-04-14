@@ -22,7 +22,7 @@ USER appuser
 
 COPY --from=build /app/publish .
 
-ENV ASPNETCORE_URLS=http://+:3003
+# Port is configurable via ASPNETCORE_URLS env var in docker-compose
 EXPOSE 3003
 
 ENTRYPOINT ["dotnet", "HealthTech.Api.dll"]
