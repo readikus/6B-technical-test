@@ -51,15 +51,24 @@ builder.Services.AddRateLimiter(options =>
     };
 });
 
-// CORS
-var corsOrigins = builder.Configuration["Cors:Origins"]?.Split(',')
-    ?? new[] { "http://localhost:3000" };
+// CORS — allow the Next.js frontend and any configured origins
+var configuredOrigins = builder.Configuration["Cors:Origins"]?.Split(',')
+    .Select(o => o.Trim())
+    .Where(o => !string.IsNullOrEmpty(o))
+    .ToArray() ?? Array.Empty<string>();
+
+// Always include common local dev origins
+var corsOrigins = new HashSet<string>(configuredOrigins)
+{
+    "http://localhost:3000",
+    "http://localhost:3001",
+};
 
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.WithOrigins(corsOrigins)
+        policy.WithOrigins(corsOrigins.ToArray())
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
@@ -84,11 +93,10 @@ builder.Services.AddValidatorsFromAssemblyContaining<CreateAppointmentValidator>
 
 var app = builder.Build();
 
-// Middleware pipeline
-app.UseMiddleware<SecurityHeadersMiddleware>();
-
-app.UseRateLimiter();
+// Middleware pipeline — CORS must be first so preflight OPTIONS gets handled
 app.UseCors();
+app.UseMiddleware<SecurityHeadersMiddleware>();
+app.UseRateLimiter();
 
 app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
