@@ -14,24 +14,22 @@ graph TB
             TLS["TLS Termination<br/>Global Load Balancing"]
         end
 
-        subgraph VNet["Virtual Network"]
-            subgraph AppSubnet["App Subnet"]
-                subgraph ContainerApps["Azure Container Apps Environment"]
-                    API["HealthTech.Api<br/>ASP.NET Core 10<br/>+ Blazor WASM"]
-                    API2["HealthTech.Api<br/>(replica)"]
-                end
+        subgraph VNet["Virtual Network (UK South)"]
+            subgraph Zone1["Availability Zone 1"]
+                API["HealthTech.Api<br/>ASP.NET Core 10<br/>+ Blazor WASM"]
+                PG[("PostgreSQL<br/>Flexible Server<br/>(Primary)")]
             end
 
-            subgraph DataSubnet["Data Subnet"]
-                PG[("Azure PostgreSQL<br/>Flexible Server<br/>Zone-Redundant HA")]
-                PG_Standby[("Standby<br/>Replica")]
+            subgraph Zone2["Availability Zone 2"]
+                API2["HealthTech.Api<br/>(replica)"]
+                PG_Standby[("PostgreSQL<br/>(Standby — auto failover)")]
             end
 
             PE1["Private Endpoint<br/>App → PostgreSQL<br/>(10.0.2.5 — no public access)"]
             PE2["Private Endpoint<br/>App → Key Vault<br/>(10.0.2.6 — secrets stay in VNet)"]
         end
 
-        KV["Azure Key Vault<br/>- ENCRYPTION_KEY<br/>- JWT_SECRET"]
+        KV["Azure Key Vault<br/>- ENCRYPTION_KEY<br/>- JWT_SECRET<br/>(Zone-redundant by default)"]
         ACR["Azure Container<br/>Registry"]
         MI["Managed<br/>Identity"]
         Monitor["Azure Monitor<br/>& Log Analytics"]
@@ -71,7 +69,8 @@ graph TB
     style Azure fill:#e8f4fd,stroke:#0078d4
     style VNet fill:#f0f7e8,stroke:#5bb75b
     style FrontDoor fill:#fff3e0,stroke:#ff8c00
-    style ContainerApps fill:#e8eaf6,stroke:#3f51b5
+    style Zone1 fill:#e8eaf6,stroke:#3f51b5
+    style Zone2 fill:#ede7f6,stroke:#7e57c2
     style CICD fill:#fce4ec,stroke:#e91e63
 ```
 
