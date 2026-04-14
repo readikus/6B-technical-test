@@ -1,0 +1,88 @@
+@page "/admin/appointments/{Id:guid}"
+@layout AdminLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@inject ApiClient Api
+@inject NavigationManager Navigation
+
+<PageTitle>Appointment Detail - SixBee HealthTech Admin</PageTitle>
+
+@if (_loading)
+{
+    <div class="text-center p-8"><span class="spinner"></span></div>
+}
+else if (_appointment is not null)
+{
+    <div class="flex justify-between items-center mb-4">
+        <h1>Appointment Detail</h1>
+        <div class="flex gap-2">
+            <a href="/admin/appointments/@Id/edit" class="btn btn-primary">Edit</a>
+            <a href="/admin" class="btn btn-outline">Back</a>
+        </div>
+    </div>
+
+    <div class="card mb-6">
+        <div class="detail-grid">
+            <span class="detail-label">Name</span>
+            <span class="detail-value">@_appointment.Name</span>
+
+            <span class="detail-label">Email</span>
+            <span class="detail-value">@_appointment.Email</span>
+
+            <span class="detail-label">Phone</span>
+            <span class="detail-value">@_appointment.Phone</span>
+
+            <span class="detail-label">Date & Time</span>
+            <span class="detail-value">@_appointment.DateTime.ToString("f")</span>
+
+            <span class="detail-label">Status</span>
+            <span class="detail-value">
+                <span class="badge @GetBadgeClass(_appointment.Status)">@_appointment.Status</span>
+            </span>
+
+            <span class="detail-label">Description</span>
+            <span class="detail-value">@_appointment.Description</span>
+
+            <span class="detail-label">Created</span>
+            <span class="detail-value">@_appointment.CreatedAt.ToString("f")</span>
+        </div>
+    </div>
+
+    <h2>Audit Log</h2>
+    <AuditTimeline Entries="@_auditLog" />
+}
+else
+{
+    <div class="alert alert-error">Appointment not found</div>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private AppointmentResponse? _appointment;
+    private List<AuditLogResponse> _auditLog = new();
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _appointment = await Api.GetAppointmentAsync(Id);
+            _auditLog = await Api.GetAuditLogAsync(Id);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private static string GetBadgeClass(string status) => status switch
+    {
+        "confirmed" => "badge-confirmed",
+        "cancelled" => "badge-cancelled",
+        _ => "badge-pending",
+    };
+}

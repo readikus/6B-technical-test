@@ -1,0 +1,31 @@
+@inherits LayoutComponentBase
+@inject CookieAuthStateProvider AuthState
+@inject NavigationManager Navigation
+
+<AuthorizeView>
+    <Authorized>
+        <nav class="navbar" role="navigation" aria-label="Main navigation">
+            <div class="navbar-inner">
+                <a href="/admin" class="navbar-brand">SixBee HealthTech Admin</a>
+                <div class="navbar-nav">
+                    <a href="/admin" class="navbar-link">Dashboard</a>
+                    <button class="btn btn-outline btn-sm text-white" @onclick="HandleLogout">Logout</button>
+                </div>
+            </div>
+        </nav>
+        <div class="container page-content">
+            @Body
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <RedirectToLogin />
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private async Task HandleLogout()
+    {
+        await AuthState.LogoutAsync();
+        Navigation.NavigateTo("/admin/login");
+    }
+}

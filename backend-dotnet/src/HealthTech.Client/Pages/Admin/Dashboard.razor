@@ -1,0 +1,153 @@
+@page "/admin"
+@layout AdminLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@inject ApiClient Api
+@inject SignalRService SignalR
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<PageTitle>Dashboard - SixBee HealthTech Admin</PageTitle>
+
+<div class="flex justify-between items-center mb-4">
+    <h1>Appointments</h1>
+    @if (_newAppointmentAlert)
+    {
+        <div class="alert alert-info" style="margin-bottom:0; padding:0.5rem 1rem;">
+            New appointment received!
+        </div>
+    }
+</div>
+
+@if (_loading)
+{
+    <div class="text-center p-8">
+        <span class="spinner"></span>
+        <p class="text-muted mt-2">Loading appointments...</p>
+    </div>
+}
+else if (_error is not null)
+{
+    <div class="alert alert-error">@_error</div>
+}
+else
+{
+    <div class="tab-list" role="tablist">
+        @foreach (var filter in _filters)
+        {
+            <button class="tab @(filter == _activeFilter ? "active" : "")"
+                    role="tab"
+                    aria-selected="@(filter == _activeFilter)"
+                    @onclick="() => SetFilter(filter)">
+                @filter (@GetFilteredCount(filter))
+            </button>
+        }
+    </div>
+
+    <AppointmentsTable Appointments="GetFilteredAppointments()"
+                       OnApprove="HandleApprove"
+                       OnDelete="HandleDelete"
+                       OnRowClick="HandleRowClick" />
+}
+
+@code {
+    private List<AppointmentResponse> _appointments = new();
+    private bool _loading = true;
+    private string? _error;
+    private bool _newAppointmentAlert;
+    private string _activeFilter = "All";
+    private static readonly string[] _filters = { "All", "Unconfirmed", "Today", "Past" };
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _appointments = await Api.GetAppointmentsAsync();
+
+            SignalR.OnAppointmentCreated += OnNewAppointment;
+            await SignalR.StartAsync();
+        }
+        catch (HttpRequestException ex) when (ex.Message.Contains("Unauthorized"))
+        {
+            Navigation.NavigateTo("/admin/login");
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async void OnNewAppointment(Guid id)
+    {
+        try
+        {
+            _appointments = await Api.GetAppointmentsAsync();
+            _newAppointmentAlert = true;
+            await InvokeAsync(StateHasChanged);
+
+            _ = Task.Delay(3000).ContinueWith(_ =>
+            {
+                _newAppointmentAlert = false;
+                InvokeAsync(StateHasChanged);
+            });
+        }
+        catch { /* ignore refresh failures */ }
+    }
+
+    private List<AppointmentResponse> GetFilteredAppointments()
+    {
+        var now = DateTime.UtcNow;
+        var todayStart = now.Date;
+        var todayEnd = todayStart.AddDays(1);
+
+        return _activeFilter switch
+        {
+            "Unconfirmed" => _appointments.Where(a => a.Status == "pending").ToList(),
+            "Today" => _appointments.Where(a => a.DateTime >= todayStart && a.DateTime < todayEnd).ToList(),
+            "Past" => _appointments.Where(a => a.DateTime < now).ToList(),
+            _ => _appointments,
+        };
+    }
+
+    private int GetFilteredCount(string filter)
+    {
+        var now = DateTime.UtcNow;
+        var todayStart = now.Date;
+        var todayEnd = todayStart.AddDays(1);
+
+        return filter switch
+        {
+            "Unconfirmed" => _appointments.Count(a => a.Status == "pending"),
+            "Today" => _appointments.Count(a => a.DateTime >= todayStart && a.DateTime < todayEnd),
+            "Past" => _appointments.Count(a => a.DateTime < now),
+            _ => _appointments.Count,
+        };
+    }
+
+    private void SetFilter(string filter) => _activeFilter = filter;
+
+    private async Task HandleApprove(AppointmentResponse appointment)
+    {
+        await Api.ApproveAppointmentAsync(appointment.Id);
+        _appointments = await Api.GetAppointmentsAsync();
+    }
+
+    private async Task HandleDelete(AppointmentResponse appointment)
+    {
+        await Api.DeleteAppointmentAsync(appointment.Id);
+        _appointments = await Api.GetAppointmentsAsync();
+    }
+
+    private void HandleRowClick(AppointmentResponse appointment)
+    {
+        Navigation.NavigateTo($"/admin/appointments/{appointment.Id}");
+    }
+
+    public void Dispose()
+    {
+        SignalR.OnAppointmentCreated -= OnNewAppointment;
+    }
+}

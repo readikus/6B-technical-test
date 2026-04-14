@@ -1,0 +1,31 @@
+<div class="datetime-picker">
+    <input id="@Id"
+           type="datetime-local"
+           class="form-input @(HasError ? "error" : "")"
+           value="@_inputValue"
+           @onchange="HandleChange"
+           min="@_minValue"
+           aria-required="true"
+           aria-describedby="@ErrorId"
+           aria-invalid="@HasError"
+           aria-label="Select appointment date and time" />
+</div>
+
+@code {
+    [Parameter] public string Id { get; set; } = "datetime-picker";
+    [Parameter] public DateTime Value { get; set; }
+    [Parameter] public EventCallback<DateTime> ValueChanged { get; set; }
+    [Parameter] public bool HasError { get; set; }
+    [Parameter] public string? ErrorId { get; set; }
+
+    private string _inputValue => Value.ToString("yyyy-MM-ddTHH:mm");
+    private string _minValue => DateTime.Now.ToString("yyyy-MM-ddTHH:mm");
+
+    private async Task HandleChange(ChangeEventArgs e)
+    {
+        if (DateTime.TryParse(e.Value?.ToString(), out var parsed))
+        {
+            await ValueChanged.InvokeAsync(parsed);
+        }
+    }
+}

@@ -70,14 +70,46 @@ All configuration is via environment variables. Defaults are provided for local 
 | `ADMIN_EMAIL`      | `admin@sixbee.health`  | Seeded admin user email                       |
 | `ADMIN_PASSWORD`   | `changeme`             | Seeded admin user password (BCrypt hashed)    |
 
+## .NET / Blazor Alternative
+
+A full C#/.NET implementation is available in `backend-dotnet/`, providing an interchangeable alternative to the NestJS + Next.js stack.
+
+| Layer          | Technology                        |
+|----------------|-----------------------------------|
+| Frontend       | Blazor WebAssembly (hosted)       |
+| Backend API    | ASP.NET Core 8                    |
+| Real-time      | SignalR                           |
+| ORM            | Entity Framework Core 8           |
+| Testing        | xUnit, bUnit, WebApplicationFactory |
+| Architecture   | MVVM (Blazor), Repository pattern |
+
+### Running the .NET version
+
+```bash
+# With Docker
+docker compose up db backend-dotnet --build
+
+# Without Docker (requires .NET 8 SDK)
+cd backend-dotnet
+dotnet run --project src/HealthTech.Api
+
+# Tests
+cd backend-dotnet && dotnet test
+```
+
+The .NET backend runs on port 3003 by default and includes the Blazor WASM frontend. Visit http://localhost:3003 for the patient booking form and http://localhost:3003/admin for the admin dashboard.
+
 ## Running Tests
 
 ```bash
-# Backend
+# Backend (NestJS)
 cd backend && npm test
 
-# Frontend
+# Frontend (Next.js)
 cd frontend && npm test
+
+# Backend (.NET)
+cd backend-dotnet && dotnet test
 ```
 
 ## Local CI with `act`
@@ -107,8 +139,9 @@ Then re-run `act` to verify before pushing.
 
 ```
 ├── backend/                 # NestJS API (port 3001)
+├── backend-dotnet/          # ASP.NET Core + Blazor WASM (port 3003)
 ├── frontend/                # Next.js app (port 3000)
-├── docker-compose.yml       # PostgreSQL + API + frontend
+├── docker-compose.yml       # PostgreSQL + API + frontend + .NET
 ├── .github/workflows/       # CI pipeline
 └── docs/
     ├── ASSIGNMENT.md        # Original brief

@@ -46,6 +46,21 @@ jobs:
       - run: npm test
       - run: npm audit --audit-level=high --omit=dev
 
+  backend-dotnet:
+    name: .NET Backend - Build & Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend-dotnet
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0'
+      - run: dotnet restore
+      - run: dotnet build --no-restore
+      - run: dotnet test --no-build --verbosity normal
+
   frontend-unit:
     name: Frontend - Lint, Test & Audit
     runs-on: ubuntu-latest
