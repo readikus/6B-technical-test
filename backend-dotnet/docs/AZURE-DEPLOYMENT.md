@@ -27,8 +27,8 @@ graph TB
                 PG_Standby[("Standby<br/>Replica")]
             end
 
-            PE1["Private<br/>Endpoint"]
-            PE2["Private<br/>Endpoint"]
+            PE1["Private Endpoint<br/>App → PostgreSQL<br/>(10.0.2.5 — no public access)"]
+            PE2["Private Endpoint<br/>App → Key Vault<br/>(10.0.2.6 — secrets stay in VNet)"]
         end
 
         KV["Azure Key Vault<br/>- ENCRYPTION_KEY<br/>- JWT_SECRET"]
