@@ -55,11 +55,35 @@ async function waitForHydration(
   );
 }
 
+/**
+ * Proxy API requests through Playwright's Node.js context so the browser
+ * bypasses CORS restrictions. Adds the missing Access-Control-Allow-
+ * Credentials header and forwards the response without reading the body
+ * (avoids Playwright response disposal errors across contexts).
+ */
+async function proxyApi(page: import('@playwright/test').Page) {
+  await page.route(`${API_URL}/**`, async (route) => {
+    try {
+      const response = await page.request.fetch(route.request());
+      await route.fulfill({
+        response,
+        headers: {
+          ...response.headers(),
+          'access-control-allow-credentials': 'true',
+        },
+      });
+    } catch {
+      await route.abort();
+    }
+  });
+}
+
 // Cached admin JWT, reused across serial tests.
 let cachedAdminToken: string | null = null;
 
 /** Navigate to the admin dashboard with a valid session. */
 async function gotoAdmin(page: import('@playwright/test').Page) {
+  await proxyApi(page);
   if (!cachedAdminToken) {
     for (let attempt = 0; attempt < 4; attempt++) {
       const res = await page.request.post(`${API_URL}/api/auth/login`, {
