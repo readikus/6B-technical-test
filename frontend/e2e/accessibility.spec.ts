@@ -181,17 +181,15 @@ test.describe('Accessibility: Admin dashboard', () => {
     await page.keyboard.press('Enter');
     await expect(tabs.nth(3)).toHaveAttribute('aria-selected', 'true');
 
-    // ── Edit appointment page (if appointments exist) ──
-    await page.goto('/admin');
-    await page.waitForSelector('[role="tablist"]');
+    // ── Edit and detail pages (if appointments exist) ──
+    // The dashboard is already loaded — check for appointment links directly
     const editLink = page.locator('a[aria-label^="Edit appointment"]').first();
     if (await editLink.isVisible()) {
       await editLink.click();
       await page.waitForSelector('form[aria-label="Edit appointment"]');
       await expectNoA11yViolations(page);
 
-      // ── Appointment detail page ──
-      await page.goto('/admin');
+      await page.goBack();
       await page.waitForSelector('[role="tablist"]');
       await page.locator('a[aria-label^="Edit appointment"]').first().click();
       await page.waitForURL('**/admin/appointments/**');
