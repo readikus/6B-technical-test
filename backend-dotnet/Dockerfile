@@ -2,15 +2,14 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Copy solution and project files for layer caching
-COPY HealthTech.sln .
+# Copy project files for layer caching (src only — tests excluded)
 COPY src/HealthTech.Api/HealthTech.Api.csproj src/HealthTech.Api/
 COPY src/HealthTech.Client/HealthTech.Client.csproj src/HealthTech.Client/
 COPY src/HealthTech.Shared/HealthTech.Shared.csproj src/HealthTech.Shared/
-RUN dotnet restore
+RUN dotnet restore src/HealthTech.Api/HealthTech.Api.csproj
 
-# Copy everything and publish
-COPY . .
+# Copy src and publish (no solution file needed, no test projects)
+COPY src/ src/
 RUN dotnet publish src/HealthTech.Api/HealthTech.Api.csproj -c Release -o /app/publish --no-restore
 
 # Stage 2: Runtime
