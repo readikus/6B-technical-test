@@ -1,6 +1,9 @@
 import type { BookingFormData } from './schemas';
+import { getApiUrl } from './backend-switcher';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+function apiUrl(): string {
+  return getApiUrl();
+}
 
 const jsonHeaders: HeadersInit = { 'Content-Type': 'application/json' };
 
@@ -33,7 +36,7 @@ export interface AuditLogEntry {
 }
 
 export async function createAppointment(data: BookingFormData) {
-  const response = await fetch(`${API_URL}/api/appointments`, {
+  const response = await fetch(`${apiUrl()}/api/appointments`, {
     method: 'POST',
     headers: jsonHeaders,
     body: JSON.stringify({
@@ -57,7 +60,7 @@ export async function loginRequest(
   email: string,
   password: string,
 ): Promise<{ ok: boolean }> {
-  const res = await fetch(`${API_URL}/api/auth/login`, {
+  const res = await fetch(`${apiUrl()}/api/auth/login`, {
     method: 'POST',
     headers: jsonHeaders,
     credentials: 'include',
@@ -73,7 +76,7 @@ export async function loginRequest(
 }
 
 export async function logoutRequest(): Promise<void> {
-  await fetch(`${API_URL}/api/auth/logout`, {
+  await fetch(`${apiUrl()}/api/auth/logout`, {
     method: 'POST',
     credentials: 'include',
   });
@@ -83,7 +86,7 @@ export async function fetchCurrentAdmin(): Promise<{
   id: string;
   email: string;
 }> {
-  const res = await fetch(`${API_URL}/api/auth/me`, {
+  const res = await fetch(`${apiUrl()}/api/auth/me`, {
     credentials: 'include',
   });
   if (res.status === 401) throw new Error('Unauthorized');
@@ -92,7 +95,7 @@ export async function fetchCurrentAdmin(): Promise<{
 }
 
 export async function fetchAppointments(): Promise<ApiAppointment[]> {
-  const res = await fetch(`${API_URL}/api/appointments`, {
+  const res = await fetch(`${apiUrl()}/api/appointments`, {
     credentials: 'include',
   });
 
@@ -103,7 +106,7 @@ export async function fetchAppointments(): Promise<ApiAppointment[]> {
 }
 
 export async function getAppointment(id: string): Promise<ApiAppointment> {
-  const res = await fetch(`${API_URL}/api/appointments/${id}`, {
+  const res = await fetch(`${apiUrl()}/api/appointments/${id}`, {
     credentials: 'include',
   });
 
@@ -117,7 +120,7 @@ export async function updateAppointment(
   id: string,
   data: Record<string, unknown>,
 ): Promise<ApiAppointment> {
-  const res = await fetch(`${API_URL}/api/appointments/${id}`, {
+  const res = await fetch(`${apiUrl()}/api/appointments/${id}`, {
     method: 'PATCH',
     headers: jsonHeaders,
     credentials: 'include',
@@ -133,7 +136,7 @@ export async function updateAppointment(
 export async function approveAppointment(
   id: string,
 ): Promise<ApiAppointment> {
-  const res = await fetch(`${API_URL}/api/appointments/${id}`, {
+  const res = await fetch(`${apiUrl()}/api/appointments/${id}`, {
     method: 'PATCH',
     headers: jsonHeaders,
     credentials: 'include',
@@ -147,7 +150,7 @@ export async function approveAppointment(
 }
 
 export async function deleteAppointment(id: string): Promise<void> {
-  const res = await fetch(`${API_URL}/api/appointments/${id}`, {
+  const res = await fetch(`${apiUrl()}/api/appointments/${id}`, {
     method: 'DELETE',
     credentials: 'include',
   });
@@ -160,7 +163,7 @@ export async function getAuditLog(
   appointmentId: string,
 ): Promise<AuditLogEntry[]> {
   const res = await fetch(
-    `${API_URL}/api/appointments/${appointmentId}/audit`,
+    `${apiUrl()}/api/appointments/${appointmentId}/audit`,
     { credentials: 'include' },
   );
 
