@@ -29,7 +29,7 @@ export default function EditAppointmentPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const { token, logout } = useAuth();
+  const { logout } = useAuth();
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
@@ -46,8 +46,7 @@ export default function EditAppointmentPage({
   });
 
   useEffect(() => {
-    if (!token) return;
-    getAppointment(token, id)
+    getAppointment(id)
       .then((apt) => {
         reset({
           name: apt.name,
@@ -68,13 +67,12 @@ export default function EditAppointmentPage({
         );
         setLoading(false);
       });
-  }, [token, id, reset, logout]);
+  }, [id, reset, logout]);
 
   const onSubmit = async (data: EditBookingFormData) => {
-    if (!token) return;
     setSubmitError(null);
     try {
-      await updateAppointment(token, id, {
+      await updateAppointment(id, {
         ...data,
         date_time: new Date(data.date_time).toISOString(),
       });

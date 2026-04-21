@@ -2,12 +2,7 @@ import type { BookingFormData } from './schemas';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-function authHeaders(token: string): HeadersInit {
-  return {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${token}`,
-  };
-}
+const jsonHeaders: HeadersInit = { 'Content-Type': 'application/json' };
 
 function parseError(error: unknown): string {
   if (error instanceof Error) return error.message;
@@ -40,7 +35,7 @@ export interface AuditLogEntry {
 export async function createAppointment(data: BookingFormData) {
   const response = await fetch(`${API_URL}/api/appointments`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: jsonHeaders,
     body: JSON.stringify({
       ...data,
       date_time: new Date(data.date_time).toISOString(),
@@ -61,10 +56,11 @@ export async function createAppointment(data: BookingFormData) {
 export async function loginRequest(
   email: string,
   password: string,
-): Promise<{ access_token: string }> {
+): Promise<{ ok: boolean }> {
   const res = await fetch(`${API_URL}/api/auth/login`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: jsonHeaders,
+    credentials: 'include',
     body: JSON.stringify({ email, password }),
   });
 
@@ -76,30 +72,39 @@ export async function loginRequest(
   return res.json();
 }
 
-export async function fetchAppointments(
-  token: string,
-): Promise<ApiAppointment[]> {
+export async function logoutRequest(): Promise<void> {
+  await fetch(`${API_URL}/api/auth/logout`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+}
+
+export async function fetchCurrentAdmin(): Promise<{
+  id: string;
+  email: string;
+}> {
+  const res = await fetch(`${API_URL}/api/auth/me`, {
+    credentials: 'include',
+  });
+  if (res.status === 401) throw new Error('Unauthorized');
+  if (!res.ok) throw new Error('Failed to fetch admin profile');
+  return res.json();
+}
+
+export async function fetchAppointments(): Promise<ApiAppointment[]> {
   const res = await fetch(`${API_URL}/api/appointments`, {
-    headers: authHeaders(token),
+    credentials: 'include',
   });
 
-  if (res.status === 401) {
-    throw new Error('Unauthorized');
-  }
-
-  if (!res.ok) {
-    throw new Error('Failed to fetch appointments');
-  }
+  if (res.status === 401) throw new Error('Unauthorized');
+  if (!res.ok) throw new Error('Failed to fetch appointments');
 
   return res.json();
 }
 
-export async function getAppointment(
-  token: string,
-  id: string,
-): Promise<ApiAppointment> {
+export async function getAppointment(id: string): Promise<ApiAppointment> {
   const res = await fetch(`${API_URL}/api/appointments/${id}`, {
-    headers: authHeaders(token),
+    credentials: 'include',
   });
 
   if (res.status === 401) throw new Error('Unauthorized');
@@ -109,13 +114,13 @@ export async function getAppointment(
 }
 
 export async function updateAppointment(
-  token: string,
   id: string,
   data: Record<string, unknown>,
 ): Promise<ApiAppointment> {
   const res = await fetch(`${API_URL}/api/appointments/${id}`, {
     method: 'PATCH',
-    headers: authHeaders(token),
+    headers: jsonHeaders,
+    credentials: 'include',
     body: JSON.stringify(data),
   });
 
@@ -126,51 +131,37 @@ export async function updateAppointment(
 }
 
 export async function approveAppointment(
-  token: string,
   id: string,
 ): Promise<ApiAppointment> {
   const res = await fetch(`${API_URL}/api/appointments/${id}`, {
     method: 'PATCH',
-    headers: authHeaders(token),
+    headers: jsonHeaders,
+    credentials: 'include',
     body: JSON.stringify({ status: 'confirmed' }),
   });
 
-  if (res.status === 401) {
-    throw new Error('Unauthorized');
-  }
-
-  if (!res.ok) {
-    throw new Error('Failed to approve appointment');
-  }
+  if (res.status === 401) throw new Error('Unauthorized');
+  if (!res.ok) throw new Error('Failed to approve appointment');
 
   return res.json();
 }
 
-export async function deleteAppointment(
-  token: string,
-  id: string,
-): Promise<void> {
+export async function deleteAppointment(id: string): Promise<void> {
   const res = await fetch(`${API_URL}/api/appointments/${id}`, {
     method: 'DELETE',
-    headers: authHeaders(token),
+    credentials: 'include',
   });
 
-  if (res.status === 401) {
-    throw new Error('Unauthorized');
-  }
-
-  if (!res.ok) {
-    throw new Error('Failed to delete appointment');
-  }
+  if (res.status === 401) throw new Error('Unauthorized');
+  if (!res.ok) throw new Error('Failed to delete appointment');
 }
 
 export async function getAuditLog(
-  token: string,
   appointmentId: string,
 ): Promise<AuditLogEntry[]> {
   const res = await fetch(
     `${API_URL}/api/appointments/${appointmentId}/audit`,
-    { headers: authHeaders(token) },
+    { credentials: 'include' },
   );
 
   if (res.status === 401) throw new Error('Unauthorized');

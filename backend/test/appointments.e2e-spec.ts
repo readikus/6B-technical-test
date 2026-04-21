@@ -4,6 +4,7 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import Knex from 'knex';
 import bcrypt from 'bcrypt';
+import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import * as path from 'path';
 import { AppModule } from '../src/app.module';
@@ -11,7 +12,7 @@ import { AppModule } from '../src/app.module';
 describe('Appointments API (e2e)', () => {
   let app: INestApplication<App>;
   let db: ReturnType<typeof Knex>;
-  let authToken: string;
+  let authCookie: string[];
 
   const connectionBase = {
     host: process.env.POSTGRES_HOST || 'localhost',
@@ -70,11 +71,12 @@ describe('Appointments API (e2e)', () => {
 
     app = moduleFixture.createNestApplication();
     app.use(helmet());
-    app.enableCors({ origin: ['http://localhost:3000'] });
+    app.use(cookieParser());
+    app.enableCors({ origin: ['http://localhost:3000'], credentials: true });
     app.setGlobalPrefix('api');
     await app.init();
 
-    // Seed admin user and obtain JWT
+    // Seed admin user and obtain auth cookie
     const hashedPassword = await bcrypt.hash(adminCredentials.password, 10);
     await db('admin_users')
       .insert({ email: adminCredentials.email, password: hashedPassword })
@@ -84,7 +86,8 @@ describe('Appointments API (e2e)', () => {
     const loginRes = await request(app.getHttpServer())
       .post('/api/auth/login')
       .send(adminCredentials);
-    authToken = loginRes.body.access_token as string;
+    const cookies = loginRes.headers['set-cookie'];
+    authCookie = Array.isArray(cookies) ? cookies : [cookies];
   }, 30_000);
 
   afterAll(async () => {
@@ -246,7 +249,7 @@ describe('Appointments API (e2e)', () => {
       // Act
       const response = await request(app.getHttpServer())
         .get('/api/appointments')
-        .set('Authorization', `Bearer ${authToken}`);
+        .set('Cookie', authCookie);
 
       // Assert
       expect(response.status).toBe(200);
@@ -269,7 +272,7 @@ describe('Appointments API (e2e)', () => {
       // Act
       const response = await request(app.getHttpServer())
         .get('/api/appointments')
-        .set('Authorization', `Bearer ${authToken}`);
+        .set('Cookie', authCookie);
 
       // Assert
       expect(response.status).toBe(200);
@@ -292,7 +295,7 @@ describe('Appointments API (e2e)', () => {
       // Act
       const response = await request(app.getHttpServer())
         .get(`/api/appointments/${created.body.id}`)
-        .set('Authorization', `Bearer ${authToken}`);
+        .set('Cookie', authCookie);
 
       // Assert
       expect(response.status).toBe(200);
@@ -309,7 +312,7 @@ describe('Appointments API (e2e)', () => {
       // Act
       const response = await request(app.getHttpServer())
         .get(`/api/appointments/${fakeId}`)
-        .set('Authorization', `Bearer ${authToken}`);
+        .set('Cookie', authCookie);
 
       // Assert
       expect(response.status).toBe(404);
@@ -319,7 +322,7 @@ describe('Appointments API (e2e)', () => {
       // Arrange / Act
       const response = await request(app.getHttpServer())
         .get('/api/appointments/not-a-uuid')
-        .set('Authorization', `Bearer ${authToken}`);
+        .set('Cookie', authCookie);
 
       // Assert
       expect(response.status).toBe(400);
@@ -338,7 +341,7 @@ describe('Appointments API (e2e)', () => {
       // Act
       const response = await request(app.getHttpServer())
         .patch(`/api/appointments/${created.body.id}`)
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('Cookie', authCookie)
         .send({ name: 'Updated Name', status: 'confirmed' });
 
       // Assert
@@ -360,7 +363,7 @@ describe('Appointments API (e2e)', () => {
       // Act
       await request(app.getHttpServer())
         .patch(`/api/appointments/${created.body.id}`)
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('Cookie', authCookie)
         .send({ name: 'Updated Name' });
       const updatedRow = await db('appointments')
         .where('id', created.body.id)
@@ -378,7 +381,7 @@ describe('Appointments API (e2e)', () => {
       // Act
       const response = await request(app.getHttpServer())
         .patch(`/api/appointments/${fakeId}`)
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('Cookie', authCookie)
         .send({ name: 'Updated Name' });
 
       // Assert
@@ -394,7 +397,7 @@ describe('Appointments API (e2e)', () => {
       // Act
       const response = await request(app.getHttpServer())
         .patch(`/api/appointments/${created.body.id}`)
-        .set('Authorization', `Bearer ${authToken}`)
+        .set('Cookie', authCookie)
         .send({ email: 'not-valid' });
 
       // Assert
@@ -414,7 +417,7 @@ describe('Appointments API (e2e)', () => {
       // Act
       const response = await request(app.getHttpServer())
         .delete(`/api/appointments/${created.body.id}`)
-        .set('Authorization', `Bearer ${authToken}`);
+        .set('Cookie', authCookie);
 
       // Assert
       expect(response.status).toBe(204);
@@ -427,7 +430,7 @@ describe('Appointments API (e2e)', () => {
       // Act
       const response = await request(app.getHttpServer())
         .delete(`/api/appointments/${fakeId}`)
-        .set('Authorization', `Bearer ${authToken}`);
+        .set('Cookie', authCookie);
 
       // Assert
       expect(response.status).toBe(404);
@@ -440,12 +443,12 @@ describe('Appointments API (e2e)', () => {
         .send(validAppointment);
       await request(app.getHttpServer())
         .delete(`/api/appointments/${created.body.id}`)
-        .set('Authorization', `Bearer ${authToken}`);
+        .set('Cookie', authCookie);
 
       // Act
       const getResponse = await request(app.getHttpServer())
         .get(`/api/appointments/${created.body.id}`)
-        .set('Authorization', `Bearer ${authToken}`);
+        .set('Cookie', authCookie);
 
       // Assert — gone from both API and database
       expect(getResponse.status).toBe(404);
