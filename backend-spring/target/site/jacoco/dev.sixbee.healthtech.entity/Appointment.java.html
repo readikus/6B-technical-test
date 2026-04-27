@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Appointment.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">SixBee HealthTech API</a> &gt; <a href="index.source.html" class="el_package">dev.sixbee.healthtech.entity</a> &gt; <span class="el_source">Appointment.java</span></div><h1>Appointment.java</h1><pre class="source lang-java linenums">package dev.sixbee.healthtech.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
+import java.time.OffsetDateTime;
+import java.util.UUID;
+
+@Entity
+@Table(name = &quot;appointments&quot;)
+<span class="fc" id="L16">public class Appointment {</span>
+
+  @Id
+  @GeneratedValue(strategy = GenerationType.UUID)
+  private UUID id;
+
+  @Column(nullable = false, columnDefinition = &quot;TEXT&quot;)
+  private String name;
+
+  @Column(nullable = false, columnDefinition = &quot;TEXT&quot;)
+  private String email;
+
+  @Column(nullable = false, columnDefinition = &quot;TEXT&quot;)
+  private String phone;
+
+  @Column(nullable = false, columnDefinition = &quot;TEXT&quot;)
+  private String description;
+
+  @Column(name = &quot;date_time&quot;, nullable = false)
+  private OffsetDateTime dateTime;
+
+<span class="fc" id="L37">  @Column(nullable = false)</span>
+  private String status = &quot;pending&quot;;
+
+<span class="fc" id="L40">  @Column(columnDefinition = &quot;JSONB&quot;)</span>
+  private String metadata = &quot;{}&quot;;
+
+  @Column(name = &quot;created_at&quot;, nullable = false, updatable = false)
+  private OffsetDateTime createdAt;
+
+  @Column(name = &quot;updated_at&quot;, nullable = false)
+  private OffsetDateTime updatedAt;
+
+  @PrePersist
+  protected void onCreate() {
+<span class="nc" id="L51">    createdAt = OffsetDateTime.now();</span>
+<span class="nc" id="L52">    updatedAt = OffsetDateTime.now();</span>
+<span class="nc" id="L53">  }</span>
+
+  @PreUpdate
+  protected void onUpdate() {
+<span class="nc" id="L57">    updatedAt = OffsetDateTime.now();</span>
+<span class="nc" id="L58">  }</span>
+
+  public UUID getId() {
+<span class="fc" id="L61">    return id;</span>
+  }
+
+  public void setId(UUID id) {
+<span class="fc" id="L65">    this.id = id;</span>
+<span class="fc" id="L66">  }</span>
+
+  public String getName() {
+<span class="fc" id="L69">    return name;</span>
+  }
+
+  public void setName(String name) {
+<span class="fc" id="L73">    this.name = name;</span>
+<span class="fc" id="L74">  }</span>
+
+  public String getEmail() {
+<span class="fc" id="L77">    return email;</span>
+  }
+
+  public void setEmail(String email) {
+<span class="fc" id="L81">    this.email = email;</span>
+<span class="fc" id="L82">  }</span>
+
+  public String getPhone() {
+<span class="fc" id="L85">    return phone;</span>
+  }
+
+  public void setPhone(String phone) {
+<span class="fc" id="L89">    this.phone = phone;</span>
+<span class="fc" id="L90">  }</span>
+
+  public String getDescription() {
+<span class="fc" id="L93">    return description;</span>
+  }
+
+  public void setDescription(String description) {
+<span class="fc" id="L97">    this.description = description;</span>
+<span class="fc" id="L98">  }</span>
+
+  public OffsetDateTime getDateTime() {
+<span class="fc" id="L101">    return dateTime;</span>
+  }
+
+  public void setDateTime(OffsetDateTime dateTime) {
+<span class="fc" id="L105">    this.dateTime = dateTime;</span>
+<span class="fc" id="L106">  }</span>
+
+  public String getStatus() {
+<span class="fc" id="L109">    return status;</span>
+  }
+
+  public void setStatus(String status) {
+<span class="fc" id="L113">    this.status = status;</span>
+<span class="fc" id="L114">  }</span>
+
+  public String getMetadata() {
+<span class="fc" id="L117">    return metadata;</span>
+  }
+
+  public void setMetadata(String metadata) {
+<span class="fc" id="L121">    this.metadata = metadata;</span>
+<span class="fc" id="L122">  }</span>
+
+  public OffsetDateTime getCreatedAt() {
+<span class="fc" id="L125">    return createdAt;</span>
+  }
+
+  public void setCreatedAt(OffsetDateTime createdAt) {
+<span class="fc" id="L129">    this.createdAt = createdAt;</span>
+<span class="fc" id="L130">  }</span>
+
+  public OffsetDateTime getUpdatedAt() {
+<span class="fc" id="L133">    return updatedAt;</span>
+  }
+
+  public void setUpdatedAt(OffsetDateTime updatedAt) {
+<span class="fc" id="L137">    this.updatedAt = updatedAt;</span>
+<span class="fc" id="L138">  }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>JwtService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">SixBee HealthTech API</a> &gt; <a href="index.source.html" class="el_package">dev.sixbee.healthtech.service</a> &gt; <span class="el_source">JwtService.java</span></div><h1>JwtService.java</h1><pre class="source lang-java linenums">package dev.sixbee.healthtech.service;
+
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
+import java.util.UUID;
+import javax.crypto.SecretKey;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+@Service
+public class JwtService {
+
+  /**
+   * Minimum JWT secret length in bytes. Mirrors the NestJS backend (backend/src/auth/auth.module.ts
+   * requireJwtSecret). 32 bytes is the minimum for HMAC-SHA256 to provide its full 256-bit security
+   * margin — shorter keys reduce the effective entropy below what the algorithm assumes.
+   */
+  private static final int MIN_SECRET_BYTES = 32;
+
+  private final SecretKey key;
+  private final long expirationMs;
+
+  public JwtService(
+      @Value(&quot;${app.jwt.secret:}&quot;) String secret,
+<span class="fc" id="L28">      @Value(&quot;${app.jwt.expiration-ms}&quot;) long expirationMs) {</span>
+<span class="fc" id="L29">    requireStrongSecret(secret);</span>
+<span class="fc" id="L30">    this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));</span>
+<span class="fc" id="L31">    this.expirationMs = expirationMs;</span>
+<span class="fc" id="L32">  }</span>
+
+  /**
+   * Fails fast at service instantiation if JWT_SECRET is missing or too short. The empty-string
+   * default in the {@code @Value} annotation lets Spring resolve the placeholder even when the env
+   * var is unset, so we can produce a clear error here rather than Spring's cryptic &quot;Could not
+   * resolve placeholder&quot; at context-load time.
+   */
+  private static void requireStrongSecret(String secret) {
+<span class="fc bfc" id="L41" title="All 4 branches covered.">    if (secret == null || secret.isEmpty()) {</span>
+<span class="fc" id="L42">      throw new IllegalStateException(</span>
+          &quot;JWT_SECRET environment variable is required and must not be empty&quot;);
+    }
+<span class="fc bfc" id="L45" title="All 2 branches covered.">    if (secret.getBytes(StandardCharsets.UTF_8).length &lt; MIN_SECRET_BYTES) {</span>
+<span class="fc" id="L46">      throw new IllegalStateException(</span>
+          &quot;JWT_SECRET must be at least &quot; + MIN_SECRET_BYTES + &quot; bytes long&quot;);
+    }
+<span class="fc" id="L49">  }</span>
+
+  public String generateToken(UUID adminId, String email) {
+<span class="fc" id="L52">    Date now = new Date();</span>
+<span class="fc" id="L53">    Date expiry = new Date(now.getTime() + expirationMs);</span>
+
+<span class="fc" id="L55">    return Jwts.builder()</span>
+<span class="fc" id="L56">        .subject(adminId.toString())</span>
+<span class="fc" id="L57">        .claim(&quot;email&quot;, email)</span>
+<span class="fc" id="L58">        .issuedAt(now)</span>
+<span class="fc" id="L59">        .expiration(expiry)</span>
+<span class="fc" id="L60">        .signWith(key)</span>
+<span class="fc" id="L61">        .compact();</span>
+  }
+
+  public Claims parseToken(String token) {
+<span class="fc" id="L65">    return Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();</span>
+  }
+
+  public boolean isValid(String token) {
+    try {
+<span class="fc" id="L70">      parseToken(token);</span>
+<span class="fc" id="L71">      return true;</span>
+<span class="fc" id="L72">    } catch (Exception e) {</span>
+<span class="fc" id="L73">      return false;</span>
+    }
+  }
+
+  public String getSubject(String token) {
+<span class="nc" id="L78">    return parseToken(token).getSubject();</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

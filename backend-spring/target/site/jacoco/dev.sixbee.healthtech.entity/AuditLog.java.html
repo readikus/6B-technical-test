@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AuditLog.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">SixBee HealthTech API</a> &gt; <a href="index.source.html" class="el_package">dev.sixbee.healthtech.entity</a> &gt; <span class="el_source">AuditLog.java</span></div><h1>AuditLog.java</h1><pre class="source lang-java linenums">package dev.sixbee.healthtech.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
+import java.time.OffsetDateTime;
+import java.util.UUID;
+
+@Entity
+@Table(name = &quot;audit_log&quot;)
+<span class="fc" id="L15">public class AuditLog {</span>
+
+  @Id
+  @GeneratedValue(strategy = GenerationType.UUID)
+  private UUID id;
+
+  @Column(name = &quot;appointment_id&quot;)
+  private UUID appointmentId;
+
+  @Column(name = &quot;admin_user_id&quot;)
+  private UUID adminUserId;
+
+  @Column(nullable = false)
+  private String action;
+
+  @Column(nullable = false, columnDefinition = &quot;TEXT&quot;)
+  private String changes;
+
+  /** Max IPv6 string length is 45 characters (RFC 4291). */
+  @Column(name = &quot;ip_address&quot;, length = 45)
+  private String ipAddress;
+
+  /** Truncated to 512 chars before insert. Matches NestJS migration 005. */
+  @Column(name = &quot;user_agent&quot;, length = 512)
+  private String userAgent;
+
+  @Column(name = &quot;created_at&quot;, nullable = false, updatable = false)
+  private OffsetDateTime createdAt;
+
+  @PrePersist
+  protected void onCreate() {
+<span class="nc" id="L46">    createdAt = OffsetDateTime.now();</span>
+<span class="nc" id="L47">  }</span>
+
+  public UUID getId() {
+<span class="fc" id="L50">    return id;</span>
+  }
+
+  public void setId(UUID id) {
+<span class="fc" id="L54">    this.id = id;</span>
+<span class="fc" id="L55">  }</span>
+
+  public UUID getAppointmentId() {
+<span class="fc" id="L58">    return appointmentId;</span>
+  }
+
+  public void setAppointmentId(UUID appointmentId) {
+<span class="fc" id="L62">    this.appointmentId = appointmentId;</span>
+<span class="fc" id="L63">  }</span>
+
+  public UUID getAdminUserId() {
+<span class="fc" id="L66">    return adminUserId;</span>
+  }
+
+  public void setAdminUserId(UUID adminUserId) {
+<span class="fc" id="L70">    this.adminUserId = adminUserId;</span>
+<span class="fc" id="L71">  }</span>
+
+  public String getAction() {
+<span class="fc" id="L74">    return action;</span>
+  }
+
+  public void setAction(String action) {
+<span class="fc" id="L78">    this.action = action;</span>
+<span class="fc" id="L79">  }</span>
+
+  public String getChanges() {
+<span class="fc" id="L82">    return changes;</span>
+  }
+
+  public void setChanges(String changes) {
+<span class="fc" id="L86">    this.changes = changes;</span>
+<span class="fc" id="L87">  }</span>
+
+  public String getIpAddress() {
+<span class="fc" id="L90">    return ipAddress;</span>
+  }
+
+  public void setIpAddress(String ipAddress) {
+<span class="fc" id="L94">    this.ipAddress = ipAddress;</span>
+<span class="fc" id="L95">  }</span>
+
+  public String getUserAgent() {
+<span class="fc" id="L98">    return userAgent;</span>
+  }
+
+  public void setUserAgent(String userAgent) {
+<span class="fc" id="L102">    this.userAgent = userAgent;</span>
+<span class="fc" id="L103">  }</span>
+
+  public OffsetDateTime getCreatedAt() {
+<span class="fc" id="L106">    return createdAt;</span>
+  }
+
+  public void setCreatedAt(OffsetDateTime createdAt) {
+<span class="fc" id="L110">    this.createdAt = createdAt;</span>
+<span class="fc" id="L111">  }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GlobalExceptionHandler.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">SixBee HealthTech API</a> &gt; <a href="index.source.html" class="el_package">dev.sixbee.healthtech.config</a> &gt; <span class="el_source">GlobalExceptionHandler.java</span></div><h1>GlobalExceptionHandler.java</h1><pre class="source lang-java linenums">package dev.sixbee.healthtech.config;
+
+import dev.sixbee.healthtech.service.AuthService;
+import java.util.List;
+import java.util.Map;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
+
+@RestControllerAdvice
+<span class="fc" id="L14">public class GlobalExceptionHandler {</span>
+
+  @ExceptionHandler(MethodArgumentNotValidException.class)
+  public ResponseEntity&lt;Map&lt;String, Object&gt;&gt; handleValidation(MethodArgumentNotValidException ex) {
+<span class="fc" id="L18">    List&lt;Map&lt;String, String&gt;&gt; errors =</span>
+<span class="fc" id="L19">        ex.getBindingResult().getFieldErrors().stream()</span>
+<span class="fc" id="L20">            .map(fe -&gt; Map.of(&quot;field&quot;, fe.getField(), &quot;message&quot;, fe.getDefaultMessage()))</span>
+<span class="fc" id="L21">            .toList();</span>
+<span class="fc" id="L22">    return ResponseEntity.badRequest()</span>
+<span class="fc" id="L23">        .body(Map.of(&quot;message&quot;, &quot;Validation failed&quot;, &quot;errors&quot;, errors));</span>
+  }
+
+  @ExceptionHandler(ResponseStatusException.class)
+  public ResponseEntity&lt;Map&lt;String, Object&gt;&gt; handleResponseStatus(ResponseStatusException ex) {
+<span class="nc" id="L28">    HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());</span>
+<span class="nc" id="L29">    return ResponseEntity.status(status)</span>
+<span class="nc" id="L30">        .body(</span>
+<span class="nc" id="L31">            Map.of(</span>
+<span class="nc" id="L32">                &quot;statusCode&quot;, status.value(),</span>
+<span class="nc bnc" id="L33" title="All 2 branches missed.">                &quot;message&quot;, ex.getReason() != null ? ex.getReason() : status.getReasonPhrase(),</span>
+<span class="nc" id="L34">                &quot;error&quot;, status.getReasonPhrase()));</span>
+  }
+
+  @ExceptionHandler(AuthService.UnauthorizedException.class)
+  public ResponseEntity&lt;Map&lt;String, Object&gt;&gt; handleUnauthorized(
+      AuthService.UnauthorizedException ex) {
+<span class="fc" id="L40">    return ResponseEntity.status(HttpStatus.UNAUTHORIZED)</span>
+<span class="fc" id="L41">        .body(Map.of(&quot;statusCode&quot;, 401, &quot;message&quot;, ex.getMessage(), &quot;error&quot;, &quot;Unauthorized&quot;));</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

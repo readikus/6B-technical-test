@@ -23,6 +23,6 @@ USER appuser
 COPY --from=build /app/publish .
 
 # Port is configurable via ASPNETCORE_URLS env var in docker-compose
-EXPOSE 3003
+EXPOSE 3004
 
 ENTRYPOINT ["dotnet", "HealthTech.Api.dll"]

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AppointmentResponse.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">SixBee HealthTech API</a> &gt; <a href="index.source.html" class="el_package">dev.sixbee.healthtech.dto</a> &gt; <span class="el_source">AppointmentResponse.java</span></div><h1>AppointmentResponse.java</h1><pre class="source lang-java linenums">package dev.sixbee.healthtech.dto;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+import dev.sixbee.healthtech.entity.Appointment;
+import java.time.OffsetDateTime;
+import java.util.UUID;
+
+<span class="fc" id="L8">public record AppointmentResponse(</span>
+    UUID id,
+    String name,
+    String email,
+    String phone,
+    String description,
+    @JsonProperty(&quot;date_time&quot;) OffsetDateTime dateTime,
+    String status,
+    String metadata,
+    @JsonProperty(&quot;created_at&quot;) OffsetDateTime createdAt,
+    @JsonProperty(&quot;updated_at&quot;) OffsetDateTime updatedAt) {
+  public static AppointmentResponse from(Appointment a) {
+<span class="fc" id="L20">    return new AppointmentResponse(</span>
+<span class="fc" id="L21">        a.getId(),</span>
+<span class="fc" id="L22">        a.getName(),</span>
+<span class="fc" id="L23">        a.getEmail(),</span>
+<span class="fc" id="L24">        a.getPhone(),</span>
+<span class="fc" id="L25">        a.getDescription(),</span>
+<span class="fc" id="L26">        a.getDateTime(),</span>
+<span class="fc" id="L27">        a.getStatus(),</span>
+<span class="fc" id="L28">        a.getMetadata(),</span>
+<span class="fc" id="L29">        a.getCreatedAt(),</span>
+<span class="fc" id="L30">        a.getUpdatedAt());</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -53,7 +53,7 @@ cd frontend && npm install && npm run dev
 Ensure the backend you're switching to is actually running. Check `docker compose ps`.
 
 **.NET backend not starting:**
-Make sure the `.env` file has `DOTNET_PORT=3004` (3003 clashes with Spring WebSocket).
+Check `docker compose logs backend-dotnet` for startup errors (usually database connectivity).
 
 **Login fails after switching:**
 Each backend has its own auth cookies. Switching backends requires re-login — the page reload handles this.

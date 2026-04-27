@@ -60,9 +60,9 @@ services:
     build:
       context: ./backend-dotnet
     ports:
-      - "${DOTNET_PORT:-3003}:${DOTNET_PORT:-3003}"
+      - "${DOTNET_PORT:-3004}:${DOTNET_PORT:-3004}"
     environment:
-      ASPNETCORE_URLS: http://+:${DOTNET_PORT:-3003}
+      ASPNETCORE_URLS: http://+:${DOTNET_PORT:-3004}
       ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=${POSTGRES_DB:-sixbee_health};Username=${POSTGRES_USER:-sixbee};Password=${POSTGRES_PASSWORD:-changeme}
       Jwt__Secret: ${JWT_SECRET:?JWT_SECRET must be set in .env (32+ bytes)}
       Encryption__Key: ${ENCRYPTION_KEY:?ENCRYPTION_KEY must be set in .env (64 hex chars)}

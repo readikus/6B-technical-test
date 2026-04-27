@@ -22,7 +22,8 @@ public class SecurityHeadersMiddleware
 
         // Content Security Policy — relaxed for Blazor WASM and cross-origin API access
         headers["Content-Security-Policy"] =
-            "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; " +
+            "default-src 'self'; script-src 'self' 'unsafe-eval' https://cdn.tailwindcss.com; " +
+            "style-src 'self' 'unsafe-inline'; " +
             "img-src 'self' data:; font-src 'self'; connect-src 'self' ws: wss: http://localhost:*; " +
             "frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
 

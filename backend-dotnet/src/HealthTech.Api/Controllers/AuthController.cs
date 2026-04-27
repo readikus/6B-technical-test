@@ -30,6 +30,10 @@ public class AuthController : ControllerBase
         _configuration["COOKIE_SECURE"] != "false" &&
         Environment.GetEnvironmentVariable("COOKIE_SECURE") != "false";
 
+    private bool IsCrossOrigin() =>
+        Request.Headers.Origin.Count > 0 &&
+        Request.Headers.Origin.ToString() != $"{Request.Scheme}://{Request.Host}";
+
     [HttpPost("login")]
     [EnableRateLimiting("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
@@ -53,12 +57,13 @@ public class AuthController : ControllerBase
             return Unauthorized(new { message = "Invalid email or password" });
 
         var cookieSecure = IsCookieSecure();
+        var crossOrigin = IsCrossOrigin();
 
         Response.Cookies.Append(CookieName, result.Value.token, new CookieOptions
         {
             HttpOnly = true,
-            Secure = cookieSecure,
-            SameSite = SameSiteMode.Strict,
+            Secure = crossOrigin || cookieSecure,
+            SameSite = crossOrigin ? SameSiteMode.None : SameSiteMode.Strict,
             MaxAge = CookieMaxAge,
             Path = "/",
         });
@@ -71,12 +76,13 @@ public class AuthController : ControllerBase
     public IActionResult Logout()
     {
         var cookieSecure = IsCookieSecure();
+        var crossOrigin = IsCrossOrigin();
 
         Response.Cookies.Delete(CookieName, new CookieOptions
         {
             HttpOnly = true,
-            Secure = cookieSecure,
-            SameSite = SameSiteMode.Strict,
+            Secure = crossOrigin || cookieSecure,
+            SameSite = crossOrigin ? SameSiteMode.None : SameSiteMode.Strict,
             Path = "/",
         });
 

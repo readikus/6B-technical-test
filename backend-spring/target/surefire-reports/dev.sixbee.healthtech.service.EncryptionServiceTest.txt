@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: dev.sixbee.healthtech.service.EncryptionServiceTest
+-------------------------------------------------------------------------------
+Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.006 s -- in dev.sixbee.healthtech.service.EncryptionServiceTest

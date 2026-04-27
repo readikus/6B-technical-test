@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AdminUser.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">SixBee HealthTech API</a> &gt; <a href="index.source.html" class="el_package">dev.sixbee.healthtech.entity</a> &gt; <span class="el_source">AdminUser.java</span></div><h1>AdminUser.java</h1><pre class="source lang-java linenums">package dev.sixbee.healthtech.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
+import java.time.OffsetDateTime;
+import java.util.UUID;
+
+@Entity
+@Table(name = &quot;admin_users&quot;)
+<span class="fc" id="L16">public class AdminUser {</span>
+
+  @Id
+  @GeneratedValue(strategy = GenerationType.UUID)
+  private UUID id;
+
+  @Column(nullable = false, unique = true)
+  private String email;
+
+  @Column(nullable = false)
+  private String password;
+
+<span class="fc" id="L28">  @Column(name = &quot;is_active&quot;, nullable = false)</span>
+  private boolean isActive = true;
+
+  @Column(name = &quot;created_at&quot;, nullable = false, updatable = false)
+  private OffsetDateTime createdAt;
+
+  @Column(name = &quot;updated_at&quot;, nullable = false)
+  private OffsetDateTime updatedAt;
+
+  @PrePersist
+  protected void onCreate() {
+<span class="fc" id="L39">    createdAt = OffsetDateTime.now();</span>
+<span class="fc" id="L40">    updatedAt = OffsetDateTime.now();</span>
+<span class="fc" id="L41">  }</span>
+
+  @PreUpdate
+  protected void onUpdate() {
+<span class="nc" id="L45">    updatedAt = OffsetDateTime.now();</span>
+<span class="nc" id="L46">  }</span>
+
+  public UUID getId() {
+<span class="fc" id="L49">    return id;</span>
+  }
+
+  public void setId(UUID id) {
+<span class="fc" id="L53">    this.id = id;</span>
+<span class="fc" id="L54">  }</span>
+
+  public String getEmail() {
+<span class="fc" id="L57">    return email;</span>
+  }
+
+  public void setEmail(String email) {
+<span class="fc" id="L61">    this.email = email;</span>
+<span class="fc" id="L62">  }</span>
+
+  public String getPassword() {
+<span class="fc" id="L65">    return password;</span>
+  }
+
+  public void setPassword(String password) {
+<span class="fc" id="L69">    this.password = password;</span>
+<span class="fc" id="L70">  }</span>
+
+  public boolean isActive() {
+<span class="fc" id="L73">    return isActive;</span>
+  }
+
+  public void setActive(boolean active) {
+<span class="fc" id="L77">    isActive = active;</span>
+<span class="fc" id="L78">  }</span>
+
+  public OffsetDateTime getCreatedAt() {
+<span class="nc" id="L81">    return createdAt;</span>
+  }
+
+  public OffsetDateTime getUpdatedAt() {
+<span class="nc" id="L85">    return updatedAt;</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

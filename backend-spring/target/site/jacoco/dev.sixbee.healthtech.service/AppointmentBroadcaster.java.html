@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AppointmentBroadcaster.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">SixBee HealthTech API</a> &gt; <a href="index.source.html" class="el_package">dev.sixbee.healthtech.service</a> &gt; <span class="el_source">AppointmentBroadcaster.java</span></div><h1>AppointmentBroadcaster.java</h1><pre class="source lang-java linenums">package dev.sixbee.healthtech.service;
+
+import com.corundumstudio.socketio.SocketIOServer;
+import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.event.EventListener;
+import org.springframework.stereotype.Component;
+
+/**
+ * Bridges Spring's in-process {@link AppointmentCreatedEvent} into a Socket.IO broadcast for any
+ * connected admin clients. Mirrors the NestJS gateway's @OnEvent('appointment.created') handler:
+ * the broadcast payload is deliberately limited to {@code {id: ...}}, never the full appointment.
+ *
+ * &lt;p&gt;Why ID-only? Two reasons (C1 in the security audit):
+ *
+ * &lt;ol&gt;
+ *   &lt;li&gt;Defence in depth — even if a connection somehow slips past the cookie auth, no PII is
+ *       leaked over the wire.
+ *   &lt;li&gt;Single source of truth — the admin frontend re-fetches via the authenticated REST endpoint,
+ *       which goes through the same encryption + decrypt path as a normal page load.
+ * &lt;/ol&gt;
+ */
+@Component
+public class AppointmentBroadcaster {
+
+<span class="fc" id="L27">  private static final Logger log = LoggerFactory.getLogger(AppointmentBroadcaster.class);</span>
+
+  /** Event name on the wire — must match the NestJS gateway and the frontend listener. */
+  static final String EVENT_NAME = &quot;appointment.created&quot;;
+
+  private final SocketIOServer server;
+
+<span class="fc" id="L34">  public AppointmentBroadcaster(SocketIOServer server) {</span>
+<span class="fc" id="L35">    this.server = server;</span>
+<span class="fc" id="L36">  }</span>
+
+  @EventListener
+  public void onAppointmentCreated(AppointmentCreatedEvent event) {
+<span class="fc" id="L40">    Map&lt;String, String&gt; payload = Map.of(&quot;id&quot;, event.id().toString());</span>
+<span class="fc" id="L41">    server.getBroadcastOperations().sendEvent(EVENT_NAME, payload);</span>
+<span class="fc" id="L42">    log.debug(&quot;Broadcast appointment.created (id={})&quot;, event.id());</span>
+<span class="fc" id="L43">  }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>
