@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>JwtAuthenticationFilter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">SixBee HealthTech API</a> &gt; <a href="index.source.html" class="el_package">dev.sixbee.healthtech.security</a> &gt; <span class="el_source">JwtAuthenticationFilter.java</span></div><h1>JwtAuthenticationFilter.java</h1><pre class="source lang-java linenums">package dev.sixbee.healthtech.security;
+
+import dev.sixbee.healthtech.service.JwtService;
+import io.jsonwebtoken.Claims;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.Collections;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+/**
+ * Authenticates incoming requests from a JWT carried in either the {@code admin_token} httpOnly
+ * cookie (preferred) or an {@code Authorization: Bearer &lt;token&gt;} header (fallback). Mirrors the
+ * NestJS guard in backend/src/auth/jwt-auth.guard.ts which also checks cookie first and header
+ * second.
+ *
+ * &lt;p&gt;The cookie-first ordering is important: after the security audit the frontend stores the token
+ * only in the cookie, never in JavaScript-accessible storage. The header fallback is kept for
+ * direct API consumers and integration tests.
+ */
+@Component
+public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+  private static final String BEARER_PREFIX = &quot;Bearer &quot;;
+
+  private final JwtService jwtService;
+
+<span class="fc" id="L34">  public JwtAuthenticationFilter(JwtService jwtService) {</span>
+<span class="fc" id="L35">    this.jwtService = jwtService;</span>
+<span class="fc" id="L36">  }</span>
+
+  @Override
+  protected void doFilterInternal(
+      HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+      throws ServletException, IOException {
+
+<span class="fc" id="L43">    String token = extractToken(request);</span>
+<span class="fc bfc" id="L44" title="All 4 branches covered.">    if (token != null &amp;&amp; jwtService.isValid(token)) {</span>
+<span class="fc" id="L45">      authenticate(token);</span>
+    }
+
+<span class="fc" id="L48">    filterChain.doFilter(request, response);</span>
+<span class="fc" id="L49">  }</span>
+
+  /**
+   * Returns the token from the admin_token cookie if present, otherwise from the Authorization:
+   * Bearer header, otherwise null. Matches the precedence in backend/src/auth/jwt-auth.guard.ts.
+   */
+  private String extractToken(HttpServletRequest request) {
+<span class="fc" id="L56">    Cookie[] cookies = request.getCookies();</span>
+<span class="fc bfc" id="L57" title="All 2 branches covered.">    if (cookies != null) {</span>
+<span class="fc bfc" id="L58" title="All 2 branches covered.">      for (Cookie cookie : cookies) {</span>
+<span class="fc bfc" id="L59" title="All 2 branches covered.">        if (AuthCookie.COOKIE_NAME.equals(cookie.getName())) {</span>
+<span class="fc" id="L60">          String value = cookie.getValue();</span>
+<span class="pc bpc" id="L61" title="1 of 4 branches missed.">          if (value != null &amp;&amp; !value.isEmpty()) {</span>
+<span class="fc" id="L62">            return value;</span>
+          }
+        }
+      }
+    }
+
+<span class="fc" id="L68">    String header = request.getHeader(&quot;Authorization&quot;);</span>
+<span class="pc bpc" id="L69" title="1 of 4 branches missed.">    if (header != null &amp;&amp; header.startsWith(BEARER_PREFIX)) {</span>
+<span class="fc" id="L70">      return header.substring(BEARER_PREFIX.length());</span>
+    }
+
+<span class="fc" id="L73">    return null;</span>
+  }
+
+  /**
+   * Populate the SecurityContext with a JwtPrincipal containing both id (sub claim) and email
+   * (email claim) so controllers can access them via @AuthenticationPrincipal.
+   */
+  private void authenticate(String token) {
+<span class="fc" id="L81">    Claims claims = jwtService.parseToken(token);</span>
+<span class="fc" id="L82">    String id = claims.getSubject();</span>
+<span class="fc" id="L83">    String email = claims.get(&quot;email&quot;, String.class);</span>
+<span class="fc" id="L84">    JwtPrincipal principal = new JwtPrincipal(id, email);</span>
+<span class="fc" id="L85">    UsernamePasswordAuthenticationToken auth =</span>
+<span class="fc" id="L86">        new UsernamePasswordAuthenticationToken(principal, null, Collections.emptyList());</span>
+<span class="fc" id="L87">    SecurityContextHolder.getContext().setAuthentication(auth);</span>
+<span class="fc" id="L88">  }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

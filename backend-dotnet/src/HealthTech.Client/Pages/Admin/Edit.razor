@@ -1,0 +1,148 @@
+@page "/admin/appointments/{Id:guid}/edit"
+@layout AdminLayout
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@inject ApiClient Api
+@inject NavigationManager Navigation
+
+<PageTitle>Edit Appointment - SixBee HealthTech Admin</PageTitle>
+
+@if (_loading)
+{
+    <div class="text-center p-8"><span class="spinner"></span></div>
+}
+else if (_model is not null)
+{
+    <div class="flex justify-between items-center mb-4">
+        <h1>Edit Appointment</h1>
+        <a href="/admin/appointments/@Id" class="btn btn-outline">Cancel</a>
+    </div>
+
+    @if (!string.IsNullOrEmpty(_error))
+    {
+        <div class="alert alert-error">@_error</div>
+    }
+
+    @if (_success)
+    {
+        <div class="alert alert-success">Appointment updated successfully!</div>
+    }
+
+    <div class="card">
+        <EditForm Model="_model" OnValidSubmit="HandleSubmit" FormName="edit-appointment">
+            <div class="form-group">
+                <label class="form-label" for="name">Name</label>
+                <InputText id="name" class="form-input" @bind-Value="_model.Name" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="email">Email</label>
+                <InputText id="email" class="form-input" @bind-Value="_model.Email" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="phone">Phone</label>
+                <InputText id="phone" class="form-input" @bind-Value="_model.Phone" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="datetime">Date & Time</label>
+                <InputDate id="datetime" class="form-input" @bind-Value="_model.DateTime" Type="InputDateType.DateTimeLocal" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="status">Status</label>
+                <InputSelect id="status" class="form-input" @bind-Value="_model.Status">
+                    <option value="pending">Pending</option>
+                    <option value="confirmed">Confirmed</option>
+                    <option value="cancelled">Cancelled</option>
+                </InputSelect>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="description">Description</label>
+                <InputTextArea id="description" class="form-input" @bind-Value="_model.Description" />
+            </div>
+
+            <button type="submit" class="btn btn-primary" disabled="@_saving">
+                @if (_saving) { <span class="spinner mr-2"></span> }
+                Save Changes
+            </button>
+        </EditForm>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private EditModel? _model;
+    private bool _loading = true;
+    private bool _saving;
+    private string? _error;
+    private bool _success;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var appointment = await Api.GetAppointmentAsync(Id);
+            _model = new EditModel
+            {
+                Name = appointment.Name,
+                Email = appointment.Email,
+                Phone = appointment.Phone,
+                DateTime = appointment.DateTime,
+                Status = appointment.Status,
+                Description = appointment.Description,
+            };
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (_model is null) return;
+
+        _saving = true;
+        _error = null;
+        _success = false;
+
+        try
+        {
+            await Api.UpdateAppointmentAsync(Id, new UpdateAppointmentRequest
+            {
+                Name = _model.Name,
+                Email = _model.Email,
+                Phone = _model.Phone,
+                DateTime = _model.DateTime,
+                Status = _model.Status,
+                Description = _model.Description,
+            });
+            _success = true;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private class EditModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Phone { get; set; } = string.Empty;
+        public DateTime DateTime { get; set; }
+        public string Status { get; set; } = "pending";
+        public string Description { get; set; } = string.Empty;
+    }
+}

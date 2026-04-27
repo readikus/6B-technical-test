@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: dev.sixbee.healthtech.controller.RateLimitIntegrationTest
+-------------------------------------------------------------------------------
+Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 7.191 s -- in dev.sixbee.healthtech.controller.RateLimitIntegrationTest

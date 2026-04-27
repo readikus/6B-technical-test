@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>JwtCookieAuthListener.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">SixBee HealthTech API</a> &gt; <a href="index.source.html" class="el_package">dev.sixbee.healthtech.security</a> &gt; <span class="el_source">JwtCookieAuthListener.java</span></div><h1>JwtCookieAuthListener.java</h1><pre class="source lang-java linenums">package dev.sixbee.healthtech.security;
+
+import com.corundumstudio.socketio.AuthorizationListener;
+import com.corundumstudio.socketio.AuthorizationResult;
+import com.corundumstudio.socketio.HandshakeData;
+import dev.sixbee.healthtech.service.JwtService;
+import java.util.List;
+import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * Authorises Socket.IO handshakes by verifying the {@code admin_token} httpOnly cookie sent in the
+ * upgrade request. Mirrors the NestJS gateway in backend/src/appointments/appointments.gateway.ts —
+ * unauthenticated and forged connections are rejected before any broadcast can reach them, which is
+ * the C1 fix from the security audit.
+ *
+ * &lt;p&gt;The browser sends the {@code admin_token} cookie automatically on the WebSocket upgrade
+ * because it is scoped to {@code localhost} (host-only) and SameSite=Strict treats different ports
+ * on the same eTLD+1 as the same site, so the cookie crosses from {@code localhost:3002} (HTTP) to
+ * {@code localhost:3003} (Socket.IO).
+ */
+public class JwtCookieAuthListener implements AuthorizationListener {
+
+<span class="fc" id="L25">  private static final Logger log = LoggerFactory.getLogger(JwtCookieAuthListener.class);</span>
+
+  private final JwtService jwtService;
+
+<span class="fc" id="L29">  public JwtCookieAuthListener(JwtService jwtService) {</span>
+<span class="fc" id="L30">    this.jwtService = jwtService;</span>
+<span class="fc" id="L31">  }</span>
+
+  @Override
+  public AuthorizationResult getAuthorizationResult(HandshakeData data) {
+<span class="nc" id="L35">    String token = extractAdminTokenCookie(data);</span>
+<span class="nc bnc" id="L36" title="All 2 branches missed.">    if (token == null) {</span>
+<span class="nc" id="L37">      log.warn(</span>
+<span class="nc" id="L38">          &quot;WebSocket connection refused — no auth cookie (remoteAddress={})&quot;, data.getAddress());</span>
+<span class="nc" id="L39">      return AuthorizationResult.FAILED_AUTHORIZATION;</span>
+    }
+
+<span class="nc bnc" id="L42" title="All 2 branches missed.">    if (!jwtService.isValid(token)) {</span>
+<span class="nc" id="L43">      log.warn(</span>
+<span class="nc" id="L44">          &quot;WebSocket connection refused — invalid token (remoteAddress={})&quot;, data.getAddress());</span>
+<span class="nc" id="L45">      return AuthorizationResult.FAILED_AUTHORIZATION;</span>
+    }
+
+<span class="nc" id="L48">    return AuthorizationResult.SUCCESSFUL_AUTHORIZATION;</span>
+  }
+
+  /**
+   * Pulls the admin_token cookie value out of the upgrade request's Cookie header. The cookie spec
+   * allows multiple cookies on a single header, separated by &quot;; &quot;. We split on ';' and trim, then
+   * look for the one named admin_token.
+   */
+  private String extractAdminTokenCookie(HandshakeData data) {
+    Map&lt;String, List&lt;String&gt;&gt; headers =
+<span class="nc bnc" id="L58" title="All 2 branches missed.">        data.getHttpHeaders() == null ? Map.of() : toMap(data.getHttpHeaders());</span>
+
+<span class="nc" id="L60">    List&lt;String&gt; cookieHeaders = headers.get(&quot;Cookie&quot;);</span>
+<span class="nc bnc" id="L61" title="All 4 branches missed.">    if (cookieHeaders == null || cookieHeaders.isEmpty()) {</span>
+      // Try lowercase too — Netty's HttpHeaders is case-insensitive
+      // but defensive code never hurt anyone.
+<span class="nc" id="L64">      cookieHeaders = headers.get(&quot;cookie&quot;);</span>
+<span class="nc bnc" id="L65" title="All 4 branches missed.">      if (cookieHeaders == null || cookieHeaders.isEmpty()) {</span>
+<span class="nc" id="L66">        return null;</span>
+      }
+    }
+
+<span class="nc bnc" id="L70" title="All 2 branches missed.">    for (String header : cookieHeaders) {</span>
+<span class="nc bnc" id="L71" title="All 2 branches missed.">      for (String pair : header.split(&quot;;&quot;)) {</span>
+<span class="nc" id="L72">        String trimmed = pair.trim();</span>
+<span class="nc" id="L73">        int eq = trimmed.indexOf('=');</span>
+<span class="nc bnc" id="L74" title="All 2 branches missed.">        if (eq &lt;= 0) continue;</span>
+<span class="nc" id="L75">        String name = trimmed.substring(0, eq);</span>
+<span class="nc bnc" id="L76" title="All 2 branches missed.">        if (AuthCookie.COOKIE_NAME.equals(name)) {</span>
+<span class="nc" id="L77">          return trimmed.substring(eq + 1);</span>
+        }
+      }
+<span class="nc" id="L80">    }</span>
+<span class="nc" id="L81">    return null;</span>
+  }
+
+  /**
+   * Adapt netty's {@link io.netty.handler.codec.http.HttpHeaders} (which is what
+   * HandshakeData.getHttpHeaders returns) into a plain map keyed by name. Done by iterating because
+   * netty's HttpHeaders is not a java.util.Map.
+   */
+  private Map&lt;String, List&lt;String&gt;&gt; toMap(io.netty.handler.codec.http.HttpHeaders nettyHeaders) {
+<span class="nc" id="L90">    java.util.Map&lt;String, List&lt;String&gt;&gt; out = new java.util.LinkedHashMap&lt;&gt;();</span>
+<span class="nc bnc" id="L91" title="All 2 branches missed.">    for (java.util.Map.Entry&lt;String, String&gt; entry : nettyHeaders) {</span>
+<span class="nc" id="L92">      out.computeIfAbsent(entry.getKey(), k -&gt; new java.util.ArrayList&lt;&gt;()).add(entry.getValue());</span>
+<span class="nc" id="L93">    }</span>
+<span class="nc" id="L94">    return out;</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

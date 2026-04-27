@@ -1,0 +1,104 @@
+@if (Appointments.Count == 0)
+{
+    <div class="card text-center p-6 text-muted">
+        <p>No appointments found.</p>
+    </div>
+}
+else
+{
+    <div class="card table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Date & Time</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var appointment in Appointments)
+                {
+                    <tr class="clickable-row @(appointment.Status == "confirmed" ? "row-confirmed" : "")"
+                        @onclick="() => OnRowClick.InvokeAsync(appointment)">
+                        <td>@appointment.Name</td>
+                        <td>@appointment.Email</td>
+                        <td>@appointment.DateTime.ToString("g")</td>
+                        <td>
+                            <span class="badge @GetBadgeClass(appointment.Status)">
+                                @appointment.Status
+                            </span>
+                        </td>
+                        <td @onclick:stopPropagation="true">
+                            <div class="flex gap-2">
+                                @if (appointment.Status != "confirmed")
+                                {
+                                    <button class="btn btn-success btn-sm"
+                                            @onclick="() => OnApprove.InvokeAsync(appointment)"
+                                            title="Approve appointment">
+                                        Approve
+                                    </button>
+                                }
+                                <button class="btn btn-danger btn-sm"
+                                        @onclick="() => ConfirmDelete(appointment)"
+                                        title="Delete appointment">
+                                    Delete
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (_deleteTarget is not null)
+    {
+        <div class="modal-backdrop" @onclick="CancelDelete">
+            <div class="modal" @onclick:stopPropagation="true">
+                <h3>Delete Appointment</h3>
+                <p class="mt-2">Are you sure you want to delete the appointment for <strong>@_deleteTarget.Name</strong>?</p>
+                <div class="modal-actions">
+                    <button class="btn btn-outline" @onclick="CancelDelete">Cancel</button>
+                    <button class="btn btn-danger" @onclick="ExecuteDelete">Delete</button>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    [Parameter] public List<AppointmentResponse> Appointments { get; set; } = new();
+    [Parameter] public EventCallback<AppointmentResponse> OnApprove { get; set; }
+    [Parameter] public EventCallback<AppointmentResponse> OnDelete { get; set; }
+    [Parameter] public EventCallback<AppointmentResponse> OnRowClick { get; set; }
+
+    private AppointmentResponse? _deleteTarget;
+
+    private static string GetBadgeClass(string status) => status switch
+    {
+        "confirmed" => "badge-confirmed",
+        "cancelled" => "badge-cancelled",
+        _ => "badge-pending",
+    };
+
+    private void ConfirmDelete(AppointmentResponse appointment)
+    {
+        _deleteTarget = appointment;
+    }
+
+    private void CancelDelete()
+    {
+        _deleteTarget = null;
+    }
+
+    private async Task ExecuteDelete()
+    {
+        if (_deleteTarget is not null)
+        {
+            await OnDelete.InvokeAsync(_deleteTarget);
+            _deleteTarget = null;
+        }
+    }
+}

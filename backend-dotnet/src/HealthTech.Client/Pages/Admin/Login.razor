@@ -1,0 +1,78 @@
+@page "/admin/login"
+@layout MainLayout
+@inject CookieAuthStateProvider AuthState
+@inject NavigationManager Navigation
+
+<PageTitle>Admin Login - SixBee HealthTech</PageTitle>
+
+<div class="container-sm" style="padding-top: 4rem;">
+    <div class="card">
+        <h2 class="text-center">Admin Login</h2>
+
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <div class="alert alert-error" role="alert">@_error</div>
+        }
+
+        <EditForm Model="_model" OnValidSubmit="HandleLogin" FormName="login">
+            <div class="form-group">
+                <label class="form-label" for="email">Email</label>
+                <InputText id="email" class="form-input" @bind-Value="_model.Email"
+                    placeholder="admin@sixbee.health" aria-required="true" />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="password">Password</label>
+                <InputText id="password" class="form-input" @bind-Value="_model.Password"
+                    type="password" placeholder="Enter your password" aria-required="true" />
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-full" disabled="@_loading">
+                @if (_loading)
+                {
+                    <span class="spinner mr-2"></span>
+                }
+                Sign In
+            </button>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private LoginModel _model = new();
+    private string? _error;
+    private bool _loading;
+
+    private async Task HandleLogin()
+    {
+        _error = null;
+        _loading = true;
+
+        try
+        {
+            var success = await AuthState.LoginAsync(_model.Email, _model.Password);
+            if (success)
+            {
+                Navigation.NavigateTo("/admin");
+            }
+            else
+            {
+                _error = "Invalid email or password";
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private class LoginModel
+    {
+        public string Email { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+    }
+}

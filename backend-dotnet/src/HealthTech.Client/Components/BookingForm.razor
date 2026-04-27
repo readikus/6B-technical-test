@@ -1,0 +1,176 @@
+@inject ApiClient Api
+
+@if (_submitted)
+{
+    <div class="alert alert-success" role="status">
+        <h3>Appointment Requested!</h3>
+        <p class="mt-2">Your appointment request has been submitted successfully. We'll be in touch shortly.</p>
+        <button class="btn btn-outline mt-4" @onclick="Reset">Book Another</button>
+    </div>
+}
+else
+{
+    @if (!string.IsNullOrEmpty(_error))
+    {
+        <div class="alert alert-error" role="alert">@_error</div>
+    }
+
+    <EditForm Model="_model" OnValidSubmit="HandleSubmit" FormName="booking">
+        <div class="form-group">
+            <label class="form-label" for="booking-name">Full Name *</label>
+            <InputText id="booking-name" class="@FieldClass("name")"
+                @bind-Value="_model.Name" aria-required="true"
+                aria-describedby="@DescribedBy("name", "name-error")"
+                aria-invalid="@HasError("name")" />
+            @if (_errors.ContainsKey("name"))
+            {
+                <span id="name-error" class="form-error">@_errors["name"]</span>
+            }
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="booking-email">Email *</label>
+            <InputText id="booking-email" class="@FieldClass("email")" type="email"
+                @bind-Value="_model.Email" aria-required="true"
+                aria-describedby="@DescribedBy("email", "email-error")"
+                aria-invalid="@HasError("email")" />
+            @if (_errors.ContainsKey("email"))
+            {
+                <span id="email-error" class="form-error">@_errors["email"]</span>
+            }
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="booking-phone">Phone *</label>
+            <InputText id="booking-phone" class="@FieldClass("phone")" type="tel"
+                @bind-Value="_model.Phone" aria-required="true"
+                aria-describedby="@DescribedBy("phone", "phone-error")"
+                aria-invalid="@HasError("phone")" />
+            @if (_errors.ContainsKey("phone"))
+            {
+                <span id="phone-error" class="form-error">@_errors["phone"]</span>
+            }
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="booking-datetime">Preferred Date & Time *</label>
+            <DateTimePicker Id="booking-datetime"
+                Value="_model.DateTime"
+                ValueChanged="@(dt => _model.DateTime = dt)"
+                HasError="@(_errors.ContainsKey("dateTime"))"
+                ErrorId="datetime-error" />
+            @if (_errors.ContainsKey("dateTime"))
+            {
+                <span id="datetime-error" class="form-error">@_errors["dateTime"]</span>
+            }
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="booking-description">Reason for Visit *</label>
+            <InputTextArea id="booking-description" class="@FieldClass("description")"
+                @bind-Value="_model.Description" aria-required="true"
+                aria-describedby="@DescribedBy("description", "description-error")"
+                aria-invalid="@HasError("description")"
+                placeholder="Please describe the reason for your appointment..." />
+            @if (_errors.ContainsKey("description"))
+            {
+                <span id="description-error" class="form-error">@_errors["description"]</span>
+            }
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-full" disabled="@_loading">
+            @if (_loading)
+            {
+                <span class="spinner mr-2"></span>
+            }
+            Request Appointment
+        </button>
+    </EditForm>
+}
+
+@code {
+    private BookingModel _model = new();
+    private Dictionary<string, string> _errors = new();
+    private bool _loading;
+    private bool _submitted;
+    private string? _error;
+
+    private string FieldClass(string field) =>
+        _errors.ContainsKey(field) ? "form-input error" : "form-input";
+
+    private string? DescribedBy(string field, string errorId) =>
+        _errors.ContainsKey(field) ? errorId : null;
+
+    private string HasError(string field) =>
+        _errors.ContainsKey(field).ToString().ToLowerInvariant();
+
+    private bool Validate()
+    {
+        _errors.Clear();
+
+        if (string.IsNullOrWhiteSpace(_model.Name))
+            _errors["name"] = "Name is required";
+
+        if (string.IsNullOrWhiteSpace(_model.Email))
+            _errors["email"] = "Email is required";
+        else if (!_model.Email.Contains('@'))
+            _errors["email"] = "Invalid email address";
+
+        if (string.IsNullOrWhiteSpace(_model.Phone))
+            _errors["phone"] = "Phone is required";
+
+        if (_model.DateTime <= DateTime.Now)
+            _errors["dateTime"] = "Appointment date must be in the future";
+
+        if (string.IsNullOrWhiteSpace(_model.Description))
+            _errors["description"] = "Description is required";
+
+        return _errors.Count == 0;
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (!Validate()) return;
+
+        _loading = true;
+        _error = null;
+
+        try
+        {
+            await Api.CreateAppointmentAsync(new CreateAppointmentRequest
+            {
+                Name = _model.Name,
+                Email = _model.Email,
+                Phone = _model.Phone,
+                DateTime = _model.DateTime.ToUniversalTime(),
+                Description = _model.Description,
+            });
+            _submitted = true;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void Reset()
+    {
+        _model = new BookingModel();
+        _errors.Clear();
+        _submitted = false;
+        _error = null;
+    }
+
+    private class BookingModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Phone { get; set; } = string.Empty;
+        public DateTime DateTime { get; set; } = DateTime.Now.AddDays(1).Date.AddHours(9);
+        public string Description { get; set; } = string.Empty;
+    }
+}

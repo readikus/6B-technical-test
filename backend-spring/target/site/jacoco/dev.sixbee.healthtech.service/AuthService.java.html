@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AuthService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">SixBee HealthTech API</a> &gt; <a href="index.source.html" class="el_package">dev.sixbee.healthtech.service</a> &gt; <span class="el_source">AuthService.java</span></div><h1>AuthService.java</h1><pre class="source lang-java linenums">package dev.sixbee.healthtech.service;
+
+import dev.sixbee.healthtech.dto.LoginRequest;
+import dev.sixbee.healthtech.entity.AdminUser;
+import dev.sixbee.healthtech.repository.AdminUserRepository;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.stereotype.Service;
+
+@Service
+public class AuthService {
+
+  /**
+   * Bcrypt cost factor. Matches the NestJS seed (L1 in the security audit: bumped from 10 to 12).
+   * Because bcrypt hashes are self-describing, existing hashes written at cost 10 still verify
+   * correctly — the cost factor is only used for new writes.
+   */
+  private static final int BCRYPT_COST = 12;
+
+  private final AdminUserRepository adminUserRepository;
+  private final JwtService jwtService;
+  private final BCryptPasswordEncoder passwordEncoder;
+
+<span class="fc" id="L23">  public AuthService(AdminUserRepository adminUserRepository, JwtService jwtService) {</span>
+<span class="fc" id="L24">    this.adminUserRepository = adminUserRepository;</span>
+<span class="fc" id="L25">    this.jwtService = jwtService;</span>
+<span class="fc" id="L26">    this.passwordEncoder = new BCryptPasswordEncoder(BCRYPT_COST);</span>
+<span class="fc" id="L27">  }</span>
+
+  /**
+   * Verifies credentials and returns a signed JWT on success. The token is never returned in the
+   * HTTP response body — the controller wraps it in an httpOnly cookie via {@link
+   * dev.sixbee.healthtech.security.AuthCookie}.
+   *
+   * @return a signed JWT string
+   * @throws UnauthorizedException if the email is unknown, the account is inactive, or the password
+   *     does not match
+   */
+  public String login(LoginRequest request) {
+<span class="fc" id="L39">    AdminUser admin =</span>
+        adminUserRepository
+<span class="fc" id="L41">            .findByEmail(request.email())</span>
+<span class="fc" id="L42">            .filter(</span>
+<span class="fc bfc" id="L43" title="All 4 branches covered.">                a -&gt; a.isActive() &amp;&amp; passwordEncoder.matches(request.password(), a.getPassword()))</span>
+<span class="fc" id="L44">            .orElseThrow(() -&gt; new UnauthorizedException(&quot;Invalid credentials&quot;));</span>
+
+<span class="fc" id="L46">    return jwtService.generateToken(admin.getId(), admin.getEmail());</span>
+  }
+
+  public static class UnauthorizedException extends RuntimeException {
+    public UnauthorizedException(String message) {
+<span class="fc" id="L51">      super(message);</span>
+<span class="fc" id="L52">    }</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

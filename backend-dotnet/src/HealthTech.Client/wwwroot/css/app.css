@@ -1,0 +1,98 @@
+/*
+ * Custom component styles — Tailwind CDN handles utility classes in markup.
+ * Plain CSS here because the CDN cannot process @apply in external files.
+ */
+
+/* Base */
+body { min-height: 100vh; background-color: #f9fafb; color: #1f2937; }
+
+/* Container variant */
+.container-sm { max-width: 36rem; margin-left: auto; margin-right: auto; padding-left: 1rem; padding-right: 1rem; }
+
+/* Card */
+.card { background-color: #fff; border-radius: 0.5rem; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); padding: 1.5rem; }
+
+/* Form components */
+.form-group { margin-bottom: 1rem; }
+.form-label { display: block; font-weight: 500; margin-bottom: 0.25rem; font-size: 0.875rem; }
+.form-input { display: block; width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 1rem; transition: border-color 0.15s, box-shadow 0.15s; }
+.form-input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 1px rgb(59 130 246 / 0.1); }
+.form-input.error { border-color: #ef4444; }
+.form-error { color: #ef4444; font-size: 0.75rem; margin-top: 0.25rem; }
+textarea.form-input { min-height: 100px; resize: vertical; }
+
+/* Buttons */
+.btn { display: inline-flex; align-items: center; justify-content: center; padding: 0.5rem 1rem; border-radius: 0.375rem; font-weight: 500; font-size: 0.875rem; cursor: pointer; border: 1px solid transparent; transition: all 0.15s; text-decoration: none; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-primary { background-color: #3b82f6; color: #fff; }
+.btn-primary:hover { background-color: #2563eb; }
+.btn-success { background-color: #10b981; color: #fff; }
+.btn-success:hover { background-color: #059669; }
+.btn-danger { background-color: #ef4444; color: #fff; }
+.btn-danger:hover { background-color: #dc2626; }
+.btn-outline { background-color: transparent; border-color: #d1d5db; color: #374151; }
+.btn-outline:hover { background-color: #f3f4f6; }
+.btn-sm { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
+.btn-full { width: 100%; }
+
+/* Navbar */
+.navbar { background-color: #1f2937; color: #fff; padding-left: 1rem; padding-right: 1rem; }
+.navbar-inner { max-width: 80rem; margin-left: auto; margin-right: auto; display: flex; align-items: center; justify-content: space-between; height: 4rem; }
+.navbar-brand { font-weight: 700; font-size: 1.125rem; color: #fff; text-decoration: none; }
+.navbar-nav { display: flex; align-items: center; gap: 1rem; }
+.navbar-link { color: #d1d5db; text-decoration: none; font-size: 0.875rem; }
+.navbar-link:hover { color: #fff; }
+
+/* Table */
+.table-wrapper { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid #e5e7eb; }
+th { background-color: #f9fafb; font-weight: 600; font-size: 0.75rem; text-transform: uppercase; color: #6b7280; }
+tr:hover { background-color: #f9fafb; }
+tr.row-confirmed { background-color: #ecfdf5; }
+tr.row-confirmed:hover { background-color: #d1fae5; }
+.clickable-row { cursor: pointer; }
+
+/* Badges */
+.badge { display: inline-flex; align-items: center; padding: 0.125rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; }
+.badge-pending { background-color: #fef3c7; color: #92400e; }
+.badge-confirmed { background-color: #d1fae5; color: #065f46; }
+.badge-cancelled { background-color: #fee2e2; color: #991b1b; }
+
+/* Tabs */
+.tab-list { display: flex; gap: 0.25rem; border-bottom: 2px solid #e5e7eb; margin-bottom: 1rem; }
+.tab { padding: 0.5rem 1rem; font-size: 0.875rem; cursor: pointer; border: none; background: transparent; color: #6b7280; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+.tab.active { color: #3b82f6; border-bottom-color: #3b82f6; font-weight: 500; }
+.tab:hover:not(.active) { color: #374151; }
+
+/* Alerts */
+.alert { padding: 0.75rem 1rem; border-radius: 0.375rem; margin-bottom: 1rem; }
+.alert-success { background-color: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+.alert-error { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+.alert-info { background-color: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+
+/* Audit timeline */
+.timeline { position: relative; padding-left: 2rem; }
+.timeline::before { content: ''; position: absolute; left: 0.5rem; top: 0; bottom: 0; width: 2px; background-color: #e5e7eb; }
+.timeline-item { position: relative; margin-bottom: 1.5rem; }
+.timeline-item::before { content: ''; position: absolute; left: -1.625rem; top: 0.375rem; width: 0.75rem; height: 0.75rem; border-radius: 9999px; background-color: #3b82f6; border: 2px solid #fff; }
+.timeline-action { font-weight: 600; text-transform: capitalize; }
+.timeline-date { font-size: 0.75rem; color: #6b7280; }
+.timeline-changes { font-size: 0.875rem; color: #374151; margin-top: 0.25rem; }
+
+/* Modal */
+.modal-backdrop { position: fixed; inset: 0; background-color: rgb(0 0 0 / 0.5); display: flex; align-items: center; justify-content: center; z-index: 50; }
+.modal { background-color: #fff; border-radius: 0.5rem; padding: 1.5rem; max-width: 400px; width: 90%; box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25); }
+.modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem; }
+
+/* Detail page */
+.detail-grid { display: grid; gap: 0.5rem 1rem; grid-template-columns: 140px 1fr; }
+.detail-label { font-weight: 600; color: #6b7280; font-size: 0.875rem; }
+.detail-value { color: #111827; }
+
+/* Page content */
+.page-content { padding-top: 2rem; padding-bottom: 2rem; }
+
+/* Spinner animation */
+.spinner { display: inline-block; width: 1.5rem; height: 1.5rem; border: 3px solid #e5e7eb; border-top-color: #3b82f6; border-radius: 9999px; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }

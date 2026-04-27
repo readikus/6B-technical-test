@@ -1,0 +1,79 @@
+server:
+  port: ${PORT:3002}
+  servlet:
+    context-path: /api
+  # Tomcat ships with an 8KB header limit, which is far smaller than
+  # Node's ~80KB default. With cumulative cookies on a multi-port dev
+  # host (e.g. localhost:3001 NestJS + localhost:3002 Spring + stale
+  # admin_token cookies from prior test runs), 8KB is reached very
+  # quickly and Tomcat rejects the request before Spring sees it —
+  # the response then has no CORS headers, and the browser surfaces
+  # it as a generic "Failed to fetch" with no clue why. Bumping to
+  # 64KB matches NestJS's behaviour for parity.
+  max-http-request-header-size: 64KB
+
+# Spring Boot Actuator — health and info only. Heapdump, env,
+# beans, and loggers are deliberately NOT exposed: they leak
+# internal state (and in the case of env, secrets).
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+  info:
+    env:
+      enabled: true
+
+spring:
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:sixbee_health}?stringtype=unspecified
+    username: ${POSTGRES_USER:sixbee}
+    password: ${POSTGRES_PASSWORD:changeme}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+
+app:
+  jwt:
+    # No default — JwtService validates at construction and throws if
+    # missing or < 32 bytes. Matches the NestJS backend which also
+    # fails fast at module instantiation.
+    secret: ${JWT_SECRET:}
+    expiration-ms: 28800000
+  encryption:
+    # No default — EncryptionService validates at construction and
+    # throws if missing or not a valid 64-char hex string.
+    key: ${ENCRYPTION_KEY:}
+  admin:
+    email: ${ADMIN_EMAIL:admin@sixbee.health}
+    # Default meets the seed's complexity requirement (12+ chars,
+    # upper/lower/digit/symbol). Override in .env.
+    password: ${ADMIN_PASSWORD:Ch4ngeMe!Now123}
+  cookie:
+    # Defaults to true. Set COOKIE_SECURE=false only for local HTTP
+    # dev. Production deployments must serve over HTTPS. NODE_ENV is
+    # deliberately not the deciding factor — that previously caused
+    # silent cookie downgrades when NODE_ENV was unset or mistyped.
+    secure: ${COOKIE_SECURE:true}
+  cors:
+    origins: ${CORS_ORIGIN:http://localhost:3000}
+  websocket:
+    # netty-socketio server port. Separate from the Tomcat HTTP
+    # port because netty-socketio is its own embedded netty server
+    # and cannot share Tomcat's listening socket. The frontend
+    # connects via NEXT_PUBLIC_WEBSOCKET_URL, which docker-compose
+    # builds from this port.
+    host: ${APP_WEBSOCKET_HOST:0.0.0.0}
+    port: ${APP_WEBSOCKET_PORT:3003}

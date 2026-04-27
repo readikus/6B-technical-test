@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RateLimitFilter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">SixBee HealthTech API</a> &gt; <a href="index.source.html" class="el_package">dev.sixbee.healthtech.security</a> &gt; <span class="el_source">RateLimitFilter.java</span></div><h1>RateLimitFilter.java</h1><pre class="source lang-java linenums">package dev.sixbee.healthtech.security;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+/**
+ * Fixed-window, in-memory rate limiter. Ports the NestJS {@code @nestjs/throttler} configuration
+ * from backend/src/app.module.ts:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;Global: 100 requests per IP per 60-second window
+ *   &lt;li&gt;Login: 5 requests per IP per 60-second window (applied to POST /auth/login instead of the
+ *       global limit — not on top of it, so the two don't double-count)
+ * &lt;/ul&gt;
+ *
+ * Limits are read from env vars so tests can override them. Mirrors the NestJS env var names:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;{@code THROTTLE_LIMIT} / {@code THROTTLE_TTL_MS}
+ *   &lt;li&gt;{@code LOGIN_THROTTLE_LIMIT} / {@code LOGIN_THROTTLE_TTL_MS}
+ * &lt;/ul&gt;
+ *
+ * Client IP is extracted from the X-Forwarded-For header (first value) if present, otherwise from
+ * {@code request.getRemoteAddr()}. This matches the NestJS {@code app.set('trust proxy', 1)} fix
+ * that was applied in the security audit.
+ *
+ * &lt;p&gt;&lt;b&gt;Limitations:&lt;/b&gt; This is an in-memory limiter and so does not coordinate across instances
+ * in a horizontally scaled deployment (each instance has its own counter). The NestJS throttler has
+ * the same limitation. For production, swap the storage for Redis or another shared store; the API
+ * of this filter is deliberately minimal so that swap is localised.
+ */
+@Component
+public class RateLimitFilter extends OncePerRequestFilter {
+
+<span class="fc" id="L48">  private static final Logger log = LoggerFactory.getLogger(RateLimitFilter.class);</span>
+
+  /**
+   * Path suffix of the login endpoint. We use endsWith rather than equals because the request URI
+   * may or may not carry the {@code /api} context path depending on how the servlet container is
+   * configured — production adds it, MockMvc strips it. Matching on the suffix avoids that
+   * distinction.
+   */
+  private static final String LOGIN_PATH_SUFFIX = &quot;/auth/login&quot;;
+
+  private final int loginLimit;
+  private final int globalLimit;
+  private final long loginWindowMs;
+  private final long globalWindowMs;
+  private final ObjectMapper objectMapper;
+
+<span class="fc" id="L64">  private final Map&lt;String, Window&gt; loginWindows = new ConcurrentHashMap&lt;&gt;();</span>
+<span class="fc" id="L65">  private final Map&lt;String, Window&gt; globalWindows = new ConcurrentHashMap&lt;&gt;();</span>
+
+  public RateLimitFilter(
+      @Value(&quot;${app.throttle.login-limit:5}&quot;) int loginLimit,
+      @Value(&quot;${app.throttle.global-limit:100}&quot;) int globalLimit,
+      @Value(&quot;${app.throttle.login-window-ms:60000}&quot;) long loginWindowMs,
+      @Value(&quot;${app.throttle.global-window-ms:60000}&quot;) long globalWindowMs,
+<span class="fc" id="L72">      ObjectMapper objectMapper) {</span>
+<span class="fc" id="L73">    this.loginLimit = loginLimit;</span>
+<span class="fc" id="L74">    this.globalLimit = globalLimit;</span>
+<span class="fc" id="L75">    this.loginWindowMs = loginWindowMs;</span>
+<span class="fc" id="L76">    this.globalWindowMs = globalWindowMs;</span>
+<span class="fc" id="L77">    this.objectMapper = objectMapper;</span>
+<span class="fc" id="L78">  }</span>
+
+  @Override
+  protected void doFilterInternal(
+      HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+      throws ServletException, IOException {
+
+<span class="fc" id="L85">    String ip = extractClientIp(request);</span>
+<span class="fc" id="L86">    boolean isLogin = isLoginRequest(request);</span>
+
+    // The NestJS throttler applies the login limit INSTEAD of the
+    // global limit on POST /auth/login (SkipThrottle default +
+    // @Throttle login). We do the same so the two don't
+    // double-count a single login attempt.
+<span class="fc bfc" id="L92" title="All 2 branches covered.">    Map&lt;String, Window&gt; store = isLogin ? loginWindows : globalWindows;</span>
+<span class="fc bfc" id="L93" title="All 2 branches covered.">    int limit = isLogin ? loginLimit : globalLimit;</span>
+<span class="fc bfc" id="L94" title="All 2 branches covered.">    long windowMs = isLogin ? loginWindowMs : globalWindowMs;</span>
+
+<span class="fc" id="L96">    Window window = store.computeIfAbsent(ip, k -&gt; new Window());</span>
+<span class="fc bfc" id="L97" title="All 2 branches covered.">    if (!window.tryAcquire(limit, windowMs)) {</span>
+<span class="fc" id="L98">      log.warn(</span>
+          &quot;Rate limit exceeded for IP {} on {} (limit {}/{}ms)&quot;,
+          ip,
+<span class="fc" id="L101">          request.getRequestURI(),</span>
+<span class="fc" id="L102">          limit,</span>
+<span class="fc" id="L103">          windowMs);</span>
+<span class="fc" id="L104">      writeTooManyRequests(response);</span>
+<span class="fc" id="L105">      return;</span>
+    }
+
+<span class="fc" id="L108">    filterChain.doFilter(request, response);</span>
+<span class="fc" id="L109">  }</span>
+
+  private boolean isLoginRequest(HttpServletRequest request) {
+<span class="fc bfc" id="L112" title="All 2 branches covered.">    if (!&quot;POST&quot;.equalsIgnoreCase(request.getMethod())) {</span>
+<span class="fc" id="L113">      return false;</span>
+    }
+<span class="fc" id="L115">    String uri = request.getRequestURI();</span>
+<span class="pc bpc" id="L116" title="1 of 4 branches missed.">    return uri != null &amp;&amp; uri.endsWith(LOGIN_PATH_SUFFIX);</span>
+  }
+
+  /**
+   * Returns the real client IP, trusting one proxy hop. Matches {@code app.set('trust proxy', 1)}
+   * in the NestJS main.ts. If X-Forwarded-For has multiple values (comma-separated), we take the
+   * first (leftmost, which is the original client).
+   */
+  private String extractClientIp(HttpServletRequest request) {
+<span class="fc" id="L125">    String xff = request.getHeader(&quot;X-Forwarded-For&quot;);</span>
+<span class="pc bpc" id="L126" title="1 of 4 branches missed.">    if (xff != null &amp;&amp; !xff.isEmpty()) {</span>
+<span class="fc" id="L127">      int comma = xff.indexOf(',');</span>
+<span class="fc bfc" id="L128" title="All 2 branches covered.">      return (comma &gt; 0 ? xff.substring(0, comma) : xff).trim();</span>
+    }
+<span class="fc" id="L130">    return request.getRemoteAddr();</span>
+  }
+
+  private void writeTooManyRequests(HttpServletResponse response) throws IOException {
+<span class="fc" id="L134">    response.setStatus(429); // HTTP 429 Too Many Requests (not a constant in jakarta.servlet)</span>
+<span class="fc" id="L135">    response.setContentType(MediaType.APPLICATION_JSON_VALUE);</span>
+<span class="fc" id="L136">    Map&lt;String, Object&gt; body =</span>
+<span class="fc" id="L137">        Map.of(</span>
+            &quot;statusCode&quot;,
+<span class="fc" id="L139">            429,</span>
+            &quot;message&quot;,
+<span class="fc" id="L141">            List.of(&quot;ThrottlerException: Too Many Requests&quot;),</span>
+            &quot;error&quot;,
+            &quot;Too Many Requests&quot;);
+<span class="fc" id="L144">    objectMapper.writeValue(response.getOutputStream(), body);</span>
+<span class="fc" id="L145">  }</span>
+
+  /**
+   * Exposed for tests — clears the in-memory counters so each test can start from a clean state
+   * without having to wait for the window to expire.
+   */
+  public void reset() {
+<span class="fc" id="L152">    loginWindows.clear();</span>
+<span class="fc" id="L153">    globalWindows.clear();</span>
+<span class="fc" id="L154">  }</span>
+
+  /**
+   * Fixed-window counter. Thread-safe via synchronized methods. For a small (per-IP) set of
+   * counters this is cheaper than the alternatives (AtomicLong pair with CAS loop, striped locks).
+   */
+<span class="fc" id="L160">  static final class Window {</span>
+    private long windowStart;
+    private int count;
+
+    synchronized boolean tryAcquire(int limit, long windowMs) {
+<span class="fc" id="L165">      long now = System.currentTimeMillis();</span>
+<span class="fc bfc" id="L166" title="All 2 branches covered.">      if (now - windowStart &gt;= windowMs) {</span>
+<span class="fc" id="L167">        windowStart = now;</span>
+<span class="fc" id="L168">        count = 0;</span>
+      }
+<span class="fc bfc" id="L170" title="All 2 branches covered.">      if (count &gt;= limit) {</span>
+<span class="fc" id="L171">        return false;</span>
+      }
+<span class="fc" id="L173">      count++;</span>
+<span class="fc" id="L174">      return true;</span>
+    }
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

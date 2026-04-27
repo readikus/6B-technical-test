@@ -1,0 +1,35 @@
+GROUP,PACKAGE,CLASS,INSTRUCTION_MISSED,INSTRUCTION_COVERED,BRANCH_MISSED,BRANCH_COVERED,LINE_MISSED,LINE_COVERED,COMPLEXITY_MISSED,COMPLEXITY_COVERED,METHOD_MISSED,METHOD_COVERED
+SixBee HealthTech API,dev.sixbee.healthtech.entity,AuditLog,4,59,0,0,2,25,1,17,1,17
+SixBee HealthTech API,dev.sixbee.healthtech.entity,Appointment,11,79,0,0,5,33,2,21,2,21
+SixBee HealthTech API,dev.sixbee.healthtech.entity,AdminUser,10,41,0,0,4,17,3,10,3,10
+SixBee HealthTech API,dev.sixbee.healthtech.dto,CreateAppointmentRequest,0,18,0,0,0,1,0,1,0,1
+SixBee HealthTech API,dev.sixbee.healthtech.dto,AuditLogResponse,0,27,0,0,0,1,0,1,0,1
+SixBee HealthTech API,dev.sixbee.healthtech.dto,AppointmentResponse,0,57,0,0,0,12,0,2,0,2
+SixBee HealthTech API,dev.sixbee.healthtech.dto,UpdateAppointmentRequest,0,21,0,0,0,1,0,1,0,1
+SixBee HealthTech API,dev.sixbee.healthtech.dto,LoginRequest,0,9,0,0,0,1,0,1,0,1
+SixBee HealthTech API,dev.sixbee.healthtech.controller,AuthController,0,51,0,0,0,15,0,5,0,5
+SixBee HealthTech API,dev.sixbee.healthtech.controller,HealthController,4,27,1,1,2,8,1,2,0,2
+SixBee HealthTech API,dev.sixbee.healthtech.controller,AppointmentController,93,13,10,0,20,5,12,2,7,2
+SixBee HealthTech API,dev.sixbee.healthtech.security,RateLimitFilter,0,188,2,18,0,45,2,16,0,8
+SixBee HealthTech API,dev.sixbee.healthtech.security,JwtPrincipal,0,9,0,0,0,1,0,1,0,1
+SixBee HealthTech API,dev.sixbee.healthtech.security,JwtCookieAuthListener,148,10,24,0,31,4,16,2,4,2
+SixBee HealthTech API,dev.sixbee.healthtech.security,RateLimitFilter.Window,0,32,0,4,0,9,0,4,0,2
+SixBee HealthTech API,dev.sixbee.healthtech.security,AuthCookie,3,42,0,0,1,18,1,4,1,4
+SixBee HealthTech API,dev.sixbee.healthtech.security,JwtAuthenticationFilter,0,109,2,16,0,27,2,11,0,4
+SixBee HealthTech API,dev.sixbee.healthtech.config,CorsConfig,0,41,0,0,0,9,0,2,0,2
+SixBee HealthTech API,dev.sixbee.healthtech.config,SeedRunner,0,113,0,16,0,26,0,13,0,5
+SixBee HealthTech API,dev.sixbee.healthtech.config,WebSocketConfig.SocketIOLifecycle,56,0,4,0,19,0,8,0,6,0
+SixBee HealthTech API,dev.sixbee.healthtech.config,GlobalExceptionHandler,26,40,2,0,7,9,2,4,1,4
+SixBee HealthTech API,dev.sixbee.healthtech.config,WebSocketConfig,0,34,0,0,0,8,0,2,0,2
+SixBee HealthTech API,dev.sixbee.healthtech.config,SecurityConfig,0,164,0,0,0,39,0,13,0,13
+SixBee HealthTech API,dev.sixbee.healthtech,HealthtechApplication,5,3,0,0,2,1,1,1,1,1
+SixBee HealthTech API,dev.sixbee.healthtech.service,AuditService,14,123,0,6,5,32,0,9,0,6
+SixBee HealthTech API,dev.sixbee.healthtech.service,AppointmentCreatedEvent,0,6,0,0,0,1,0,1,0,1
+SixBee HealthTech API,dev.sixbee.healthtech.service,EncryptionService,7,246,0,10,2,51,0,10,0,5
+SixBee HealthTech API,dev.sixbee.healthtech.service,JwtService,5,84,0,6,1,24,1,8,1,5
+SixBee HealthTech API,dev.sixbee.healthtech.service,AuditService.new TypeReference() {...},0,3,0,0,0,1,0,1,0,1
+SixBee HealthTech API,dev.sixbee.healthtech.service,AppointmentBroadcaster,0,33,0,0,0,8,0,3,0,3
+SixBee HealthTech API,dev.sixbee.healthtech.service,AuditContext,0,27,0,0,0,3,0,3,0,3
+SixBee HealthTech API,dev.sixbee.healthtech.service,AuthService.UnauthorizedException,0,4,0,0,0,2,0,1,0,1
+SixBee HealthTech API,dev.sixbee.healthtech.service,AuthService,0,56,0,4,0,11,0,6,0,4
+SixBee HealthTech API,dev.sixbee.healthtech.service,AppointmentService,58,296,5,7,10,66,5,11,0,10

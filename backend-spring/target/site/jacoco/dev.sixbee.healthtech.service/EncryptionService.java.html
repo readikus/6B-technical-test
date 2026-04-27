@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EncryptionService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">SixBee HealthTech API</a> &gt; <a href="index.source.html" class="el_package">dev.sixbee.healthtech.service</a> &gt; <span class="el_source">EncryptionService.java</span></div><h1>EncryptionService.java</h1><pre class="source lang-java linenums">package dev.sixbee.healthtech.service;
+
+import java.security.SecureRandom;
+import java.util.Base64;
+import javax.crypto.Cipher;
+import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+@Service
+public class EncryptionService {
+
+  private static final String ALGORITHM = &quot;AES/GCM/NoPadding&quot;;
+  private static final int IV_LENGTH = 12;
+  private static final int AUTH_TAG_BITS = 128;
+  private static final int AUTH_TAG_BYTES = 16;
+
+  /** AES-256 requires exactly 32 bytes of key material = 64 hex chars. */
+  private static final int REQUIRED_HEX_LENGTH = 64;
+
+  private final SecretKeySpec keySpec;
+
+<span class="fc" id="L24">  public EncryptionService(@Value(&quot;${app.encryption.key:}&quot;) String hexKey) {</span>
+<span class="fc" id="L25">    requireValidHexKey(hexKey);</span>
+<span class="fc" id="L26">    byte[] keyBytes = hexStringToBytes(hexKey);</span>
+<span class="fc" id="L27">    this.keySpec = new SecretKeySpec(keyBytes, &quot;AES&quot;);</span>
+<span class="fc" id="L28">  }</span>
+
+  /**
+   * Fails fast at service instantiation if ENCRYPTION_KEY is missing or not a valid 64-character
+   * hex string. Mirrors the hardening applied to the NestJS backend after a misleading placeholder
+   * in .env.example caused silent Buffer.from(..., 'hex') truncation that only surfaced as {@code
+   * Invalid key length} on the first record save.
+   */
+  private static void requireValidHexKey(String hexKey) {
+<span class="fc bfc" id="L37" title="All 4 branches covered.">    if (hexKey == null || hexKey.isEmpty()) {</span>
+<span class="fc" id="L38">      throw new IllegalStateException(</span>
+          &quot;ENCRYPTION_KEY environment variable is required and must not be empty&quot;);
+    }
+<span class="fc bfc" id="L41" title="All 2 branches covered.">    if (hexKey.length() != REQUIRED_HEX_LENGTH) {</span>
+<span class="fc" id="L42">      throw new IllegalStateException(</span>
+          &quot;ENCRYPTION_KEY must be exactly &quot;
+              + REQUIRED_HEX_LENGTH
+              + &quot; hex characters (32 bytes) — got &quot;
+<span class="fc" id="L46">              + hexKey.length());</span>
+    }
+<span class="fc bfc" id="L48" title="All 2 branches covered.">    if (!hexKey.matches(&quot;[0-9a-fA-F]+&quot;)) {</span>
+<span class="fc" id="L49">      throw new IllegalStateException(</span>
+          &quot;ENCRYPTION_KEY must contain only hexadecimal characters (0-9, a-f)&quot;);
+    }
+<span class="fc" id="L52">  }</span>
+
+  /**
+   * Encrypts plaintext using AES-256-GCM. Output format: base64(IV + authTag + ciphertext)
+   * Byte-compatible with the NestJS encryption service.
+   */
+  public String encrypt(String plaintext) {
+    try {
+<span class="fc" id="L60">      byte[] iv = new byte[IV_LENGTH];</span>
+<span class="fc" id="L61">      new SecureRandom().nextBytes(iv);</span>
+
+<span class="fc" id="L63">      Cipher cipher = Cipher.getInstance(ALGORITHM);</span>
+<span class="fc" id="L64">      cipher.init(Cipher.ENCRYPT_MODE, keySpec, new GCMParameterSpec(AUTH_TAG_BITS, iv));</span>
+
+<span class="fc" id="L66">      byte[] ciphertextWithTag = cipher.doFinal(plaintext.getBytes(&quot;UTF-8&quot;));</span>
+
+      // Java GCM appends the auth tag to the ciphertext.
+      // NestJS stores them separately as: IV + authTag + ciphertext
+      // So we split the Java output and rearrange.
+<span class="fc" id="L71">      int ciphertextLength = ciphertextWithTag.length - AUTH_TAG_BYTES;</span>
+<span class="fc" id="L72">      byte[] ciphertext = new byte[ciphertextLength];</span>
+<span class="fc" id="L73">      byte[] authTag = new byte[AUTH_TAG_BYTES];</span>
+
+<span class="fc" id="L75">      System.arraycopy(ciphertextWithTag, 0, ciphertext, 0, ciphertextLength);</span>
+<span class="fc" id="L76">      System.arraycopy(ciphertextWithTag, ciphertextLength, authTag, 0, AUTH_TAG_BYTES);</span>
+
+      // Pack as: IV + authTag + ciphertext (matching NestJS format)
+<span class="fc" id="L79">      byte[] packed = new byte[IV_LENGTH + AUTH_TAG_BYTES + ciphertextLength];</span>
+<span class="fc" id="L80">      System.arraycopy(iv, 0, packed, 0, IV_LENGTH);</span>
+<span class="fc" id="L81">      System.arraycopy(authTag, 0, packed, IV_LENGTH, AUTH_TAG_BYTES);</span>
+<span class="fc" id="L82">      System.arraycopy(ciphertext, 0, packed, IV_LENGTH + AUTH_TAG_BYTES, ciphertextLength);</span>
+
+<span class="fc" id="L84">      return Base64.getEncoder().encodeToString(packed);</span>
+<span class="nc" id="L85">    } catch (Exception e) {</span>
+<span class="nc" id="L86">      throw new RuntimeException(&quot;Encryption failed&quot;, e);</span>
+    }
+  }
+
+  /**
+   * Decrypts ciphertext produced by either this service or the NestJS service. Input format:
+   * base64(IV + authTag + ciphertext)
+   */
+  public String decrypt(String packed) {
+    try {
+<span class="fc" id="L96">      byte[] buffer = Base64.getDecoder().decode(packed);</span>
+
+<span class="fc" id="L98">      byte[] iv = new byte[IV_LENGTH];</span>
+<span class="fc" id="L99">      byte[] authTag = new byte[AUTH_TAG_BYTES];</span>
+<span class="fc" id="L100">      int ciphertextLength = buffer.length - IV_LENGTH - AUTH_TAG_BYTES;</span>
+<span class="fc" id="L101">      byte[] ciphertext = new byte[ciphertextLength];</span>
+
+<span class="fc" id="L103">      System.arraycopy(buffer, 0, iv, 0, IV_LENGTH);</span>
+<span class="fc" id="L104">      System.arraycopy(buffer, IV_LENGTH, authTag, 0, AUTH_TAG_BYTES);</span>
+<span class="fc" id="L105">      System.arraycopy(buffer, IV_LENGTH + AUTH_TAG_BYTES, ciphertext, 0, ciphertextLength);</span>
+
+      // Java GCM expects ciphertext + authTag concatenated
+<span class="fc" id="L108">      byte[] ciphertextWithTag = new byte[ciphertextLength + AUTH_TAG_BYTES];</span>
+<span class="fc" id="L109">      System.arraycopy(ciphertext, 0, ciphertextWithTag, 0, ciphertextLength);</span>
+<span class="fc" id="L110">      System.arraycopy(authTag, 0, ciphertextWithTag, ciphertextLength, AUTH_TAG_BYTES);</span>
+
+<span class="fc" id="L112">      Cipher cipher = Cipher.getInstance(ALGORITHM);</span>
+<span class="fc" id="L113">      cipher.init(Cipher.DECRYPT_MODE, keySpec, new GCMParameterSpec(AUTH_TAG_BITS, iv));</span>
+
+<span class="fc" id="L115">      byte[] decrypted = cipher.doFinal(ciphertextWithTag);</span>
+<span class="fc" id="L116">      return new String(decrypted, &quot;UTF-8&quot;);</span>
+<span class="fc" id="L117">    } catch (Exception e) {</span>
+<span class="fc" id="L118">      throw new RuntimeException(&quot;Decryption failed&quot;, e);</span>
+    }
+  }
+
+  private static byte[] hexStringToBytes(String hex) {
+<span class="fc" id="L123">    int len = hex.length();</span>
+<span class="fc" id="L124">    byte[] data = new byte[len / 2];</span>
+<span class="fc bfc" id="L125" title="All 2 branches covered.">    for (int i = 0; i &lt; len; i += 2) {</span>
+<span class="fc" id="L126">      data[i / 2] =</span>
+          (byte)
+<span class="fc" id="L128">              ((Character.digit(hex.charAt(i), 16) &lt;&lt; 4) + Character.digit(hex.charAt(i + 1), 16));</span>
+    }
+<span class="fc" id="L130">    return data;</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

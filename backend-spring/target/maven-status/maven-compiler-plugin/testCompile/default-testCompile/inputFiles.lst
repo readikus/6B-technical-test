@@ -1,0 +1,14 @@
+/Users/ianread/Code/tmp-6b/6B-technical-test/backend-spring/src/test/java/dev/sixbee/healthtech/ArchitectureTest.java
+/Users/ianread/Code/tmp-6b/6B-technical-test/backend-spring/src/test/java/dev/sixbee/healthtech/config/SeedRunnerTest.java
+/Users/ianread/Code/tmp-6b/6B-technical-test/backend-spring/src/test/java/dev/sixbee/healthtech/controller/AuthControllerIntegrationTest.java
+/Users/ianread/Code/tmp-6b/6B-technical-test/backend-spring/src/test/java/dev/sixbee/healthtech/controller/RateLimitIntegrationTest.java
+/Users/ianread/Code/tmp-6b/6B-technical-test/backend-spring/src/test/java/dev/sixbee/healthtech/controller/SecurityHeadersIntegrationTest.java
+/Users/ianread/Code/tmp-6b/6B-technical-test/backend-spring/src/test/java/dev/sixbee/healthtech/security/AuthCookieTest.java
+/Users/ianread/Code/tmp-6b/6B-technical-test/backend-spring/src/test/java/dev/sixbee/healthtech/security/JwtAuthenticationFilterTest.java
+/Users/ianread/Code/tmp-6b/6B-technical-test/backend-spring/src/test/java/dev/sixbee/healthtech/security/RateLimitFilterTest.java
+/Users/ianread/Code/tmp-6b/6B-technical-test/backend-spring/src/test/java/dev/sixbee/healthtech/service/AppointmentBroadcasterTest.java
+/Users/ianread/Code/tmp-6b/6B-technical-test/backend-spring/src/test/java/dev/sixbee/healthtech/service/AppointmentServiceTest.java
+/Users/ianread/Code/tmp-6b/6B-technical-test/backend-spring/src/test/java/dev/sixbee/healthtech/service/AuditServiceTest.java
+/Users/ianread/Code/tmp-6b/6B-technical-test/backend-spring/src/test/java/dev/sixbee/healthtech/service/AuthServiceTest.java
+/Users/ianread/Code/tmp-6b/6B-technical-test/backend-spring/src/test/java/dev/sixbee/healthtech/service/EncryptionServiceTest.java
+/Users/ianread/Code/tmp-6b/6B-technical-test/backend-spring/src/test/java/dev/sixbee/healthtech/service/JwtServiceTest.java

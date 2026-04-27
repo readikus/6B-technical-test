@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SeedRunner.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">SixBee HealthTech API</a> &gt; <a href="index.source.html" class="el_package">dev.sixbee.healthtech.config</a> &gt; <span class="el_source">SeedRunner.java</span></div><h1>SeedRunner.java</h1><pre class="source lang-java linenums">package dev.sixbee.healthtech.config;
+
+import dev.sixbee.healthtech.entity.AdminUser;
+import dev.sixbee.healthtech.repository.AdminUserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.stereotype.Component;
+
+@Component
+public class SeedRunner implements CommandLineRunner {
+
+<span class="fc" id="L15">  private static final Logger log = LoggerFactory.getLogger(SeedRunner.class);</span>
+
+  /** Matches the NestJS seed in backend/seeds/001_admin_user.ts (BCRYPT_ROUNDS). */
+  static final int BCRYPT_ROUNDS = 12;
+
+  /** Matches the NestJS seed (MIN_PASSWORD_LENGTH). */
+  static final int MIN_PASSWORD_LENGTH = 12;
+
+  private final AdminUserRepository adminUserRepository;
+  private final String adminEmail;
+  private final String adminPassword;
+
+  public SeedRunner(
+      AdminUserRepository adminUserRepository,
+      @Value(&quot;${app.admin.email}&quot;) String adminEmail,
+<span class="fc" id="L30">      @Value(&quot;${app.admin.password}&quot;) String adminPassword) {</span>
+<span class="fc" id="L31">    this.adminUserRepository = adminUserRepository;</span>
+<span class="fc" id="L32">    this.adminEmail = adminEmail;</span>
+<span class="fc" id="L33">    this.adminPassword = adminPassword;</span>
+<span class="fc" id="L34">  }</span>
+
+  @Override
+  public void run(String... args) {
+<span class="fc" id="L38">    assertStrongPassword(adminPassword);</span>
+
+<span class="fc bfc" id="L40" title="All 2 branches covered.">    if (adminUserRepository.existsByEmail(adminEmail)) {</span>
+<span class="fc" id="L41">      log.info(&quot;Admin user already exists: {}&quot;, adminEmail);</span>
+<span class="fc" id="L42">      return;</span>
+    }
+
+<span class="fc" id="L45">    BCryptPasswordEncoder encoder = new BCryptPasswordEncoder(BCRYPT_ROUNDS);</span>
+<span class="fc" id="L46">    AdminUser admin = new AdminUser();</span>
+<span class="fc" id="L47">    admin.setEmail(adminEmail);</span>
+<span class="fc" id="L48">    admin.setPassword(encoder.encode(adminPassword));</span>
+<span class="fc" id="L49">    adminUserRepository.save(admin);</span>
+<span class="fc" id="L50">    log.info(&quot;Admin user seeded: {}&quot;, adminEmail);</span>
+<span class="fc" id="L51">  }</span>
+
+  /**
+   * Enforces the same password policy as the NestJS seed: - At least 12 characters - Contains
+   * uppercase, lowercase, digit, and symbol
+   *
+   * &lt;p&gt;Called at seed time so the app refuses to boot with a weak admin password. The login schema
+   * is deliberately left permissive so users with weak existing passwords aren't locked out before
+   * they can change them — this assertion only applies to freshly seeded passwords. Mirrors
+   * backend/seeds/001_admin_user.ts.
+   */
+  static void assertStrongPassword(String password) {
+<span class="fc bfc" id="L63" title="All 4 branches covered.">    if (password == null || password.length() &lt; MIN_PASSWORD_LENGTH) {</span>
+<span class="fc" id="L64">      throw new IllegalStateException(</span>
+          &quot;ADMIN_PASSWORD must be at least &quot; + MIN_PASSWORD_LENGTH + &quot; characters long&quot;);
+    }
+<span class="fc" id="L67">    boolean hasLower = password.chars().anyMatch(Character::isLowerCase);</span>
+<span class="fc" id="L68">    boolean hasUpper = password.chars().anyMatch(Character::isUpperCase);</span>
+<span class="fc" id="L69">    boolean hasDigit = password.chars().anyMatch(Character::isDigit);</span>
+<span class="fc bfc" id="L70" title="All 2 branches covered.">    boolean hasSymbol = password.chars().anyMatch(c -&gt; !Character.isLetterOrDigit(c));</span>
+<span class="fc bfc" id="L71" title="All 8 branches covered.">    if (!(hasLower &amp;&amp; hasUpper &amp;&amp; hasDigit &amp;&amp; hasSymbol)) {</span>
+<span class="fc" id="L72">      throw new IllegalStateException(</span>
+          &quot;ADMIN_PASSWORD must contain a mix of uppercase, lowercase, digits, and symbols&quot;);
+    }
+<span class="fc" id="L75">  }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

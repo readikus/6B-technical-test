@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AuthCookie.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">SixBee HealthTech API</a> &gt; <a href="index.source.html" class="el_package">dev.sixbee.healthtech.security</a> &gt; <span class="el_source">AuthCookie.java</span></div><h1>AuthCookie.java</h1><pre class="source lang-java linenums">package dev.sixbee.healthtech.security;
+
+import java.time.Duration;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseCookie;
+import org.springframework.stereotype.Component;
+
+/**
+ * Centralises the attributes of the session cookie so the login, logout, and filter paths all use
+ * identical values. Matches the NestJS cookie produced by backend/src/auth/auth.controller.ts:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;name: {@code admin_token}
+ *   &lt;li&gt;httpOnly: true
+ *   &lt;li&gt;secure: {@code COOKIE_SECURE != &quot;false&quot;} (defaults to true)
+ *   &lt;li&gt;sameSite: Strict
+ *   &lt;li&gt;path: /
+ *   &lt;li&gt;maxAge: 8 hours
+ * &lt;/ul&gt;
+ *
+ * Byte-compatible parity with the NestJS backend is a hard requirement: in a load-balanced
+ * deployment a cookie issued by one backend must be accepted by the other, and vice versa.
+ */
+@Component
+public class AuthCookie {
+
+  /** Cookie name. Must match NestJS backend/src/auth/auth.controller.ts COOKIE_NAME. */
+  public static final String COOKIE_NAME = &quot;admin_token&quot;;
+
+  /** 8 hours — matches NestJS EIGHT_HOURS_MS constant. */
+<span class="fc" id="L31">  public static final Duration MAX_AGE = Duration.ofHours(8);</span>
+
+  private final boolean secure;
+
+<span class="fc" id="L35">  public AuthCookie(@Value(&quot;${app.cookie.secure:true}&quot;) boolean secure) {</span>
+<span class="fc" id="L36">    this.secure = secure;</span>
+<span class="fc" id="L37">  }</span>
+
+  /** Build the session cookie that carries the JWT. Used by the login endpoint. */
+  public ResponseCookie buildSessionCookie(String token) {
+<span class="fc" id="L41">    return ResponseCookie.from(COOKIE_NAME, token)</span>
+<span class="fc" id="L42">        .httpOnly(true)</span>
+<span class="fc" id="L43">        .secure(secure)</span>
+<span class="fc" id="L44">        .sameSite(&quot;Strict&quot;)</span>
+<span class="fc" id="L45">        .path(&quot;/&quot;)</span>
+<span class="fc" id="L46">        .maxAge(MAX_AGE)</span>
+<span class="fc" id="L47">        .build();</span>
+  }
+
+  /**
+   * Build the cookie-clearing directive used by the logout endpoint. Matches the {@code
+   * res.clearCookie(...)} call in the NestJS logout path: same attributes as the session cookie,
+   * but empty value and {@code maxAge=0}.
+   */
+  public ResponseCookie buildClearCookie() {
+<span class="fc" id="L56">    return ResponseCookie.from(COOKIE_NAME, &quot;&quot;)</span>
+<span class="fc" id="L57">        .httpOnly(true)</span>
+<span class="fc" id="L58">        .secure(secure)</span>
+<span class="fc" id="L59">        .sameSite(&quot;Strict&quot;)</span>
+<span class="fc" id="L60">        .path(&quot;/&quot;)</span>
+<span class="fc" id="L61">        .maxAge(0)</span>
+<span class="fc" id="L62">        .build();</span>
+  }
+
+  /** Exposed for tests. */
+  public boolean isSecure() {
+<span class="nc" id="L67">    return secure;</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

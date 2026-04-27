@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: dev.sixbee.healthtech.service.AppointmentServiceTest
+-------------------------------------------------------------------------------
+Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.158 s -- in dev.sixbee.healthtech.service.AppointmentServiceTest
