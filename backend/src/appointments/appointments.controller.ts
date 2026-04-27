@@ -8,12 +8,14 @@ import {
   Param,
   HttpCode,
   BadRequestException,
+  UseGuards,
 } from '@nestjs/common';
 import { AppointmentsService } from './appointments.service';
 import {
   createAppointmentSchema,
   updateAppointmentSchema,
 } from './appointments.validation';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { z } from 'zod';
 
 const UUID_REGEX =
@@ -29,17 +31,20 @@ export class AppointmentsController {
     return this.service.create(dto);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get()
   async findAll() {
     return this.service.findAll();
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
   async findOne(@Param('id') id: string) {
     this.validateUuid(id);
     return this.service.findOne(id);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Patch(':id')
   async update(@Param('id') id: string, @Body() body: unknown) {
     this.validateUuid(id);
@@ -47,6 +52,7 @@ export class AppointmentsController {
     return this.service.update(id, dto);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
   @HttpCode(204)
   async remove(@Param('id') id: string) {
